@@ -897,8 +897,8 @@ String copy_string(String rhs)
 
 
 struct GeneratorThreadData {
-    String webroot;
-    String site;
+    String output;
+    String src_dir;
     bool build_drafts;
 };
 
@@ -975,25 +975,25 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
     return false;
 }
 
-void generate_site(String webroot, String site, bool build_drafts)
+void generate_src_dir(String output, String src_dir, bool build_drafts)
 {
     DynamicArray<Template> templates{};
     DynamicArray<Post> posts{};
     DynamicArray<Page> pages{};
     
-    String posts_src_path = join_path(site, "_posts");
-    String posts_dst_path = join_path(webroot, "posts");
+    String posts_src_path = join_path(src_dir, "_posts");
+    String posts_dst_path = join_path(output, "posts");
 
-    DynamicArray<String> page_files = list_files(site);
+    DynamicArray<String> page_files = list_files(src_dir);
     DynamicArray<String> post_files = list_files(posts_src_path);
-    DynamicArray<String> template_files = list_files(join_path(site, "_templates"));
+    DynamicArray<String> template_files = list_files(join_path(src_dir, "_templates"));
     
-    remove_files(webroot);
+    remove_files(output);
     
-    copy_files(site, "css", webroot);
-    copy_files(site, "img", webroot);
-    copy_files(site, "js", webroot);
-    copy_files(site, "fonts", webroot);
+    copy_files(src_dir, "css", output);
+    copy_files(src_dir, "img", output);
+    copy_files(src_dir, "js", output);
+    copy_files(src_dir, "fonts", output);
     
     for (String p : post_files) {
         Post post;
@@ -1162,8 +1162,8 @@ next_tmpl_file:;
     for (String p : page_files) {
         Page page{};
         
-        String filename{ p.bytes+site.length+1, p.length-site.length-1};
-        String out_file = join_path(webroot, filename);
+        String filename{ p.bytes+src_dir.length+1, p.length-src_dir.length-1};
+        String out_file = join_path(output, filename);
         
         page.name = filename;
         page.path = out_file;
@@ -1349,9 +1349,9 @@ DWORD generate_proc(void *data)
 {
     GeneratorThreadData *gtd = (GeneratorThreadData*)data;
     
-    char *sz_site = sz_string(gtd->site);
+    char *sz_src_dir = sz_string(gtd->src_dir);
     HANDLE h = CreateFileA(
-        sz_site, 
+        sz_src_dir, 
         GENERIC_READ | FILE_LIST_DIRECTORY,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL,
@@ -1374,7 +1374,7 @@ DWORD generate_proc(void *data)
         
         WaitForSingleObject(g_generate_mutex, INFINITE);
         Sleep(1000);
-        generate_site(gtd->webroot, gtd->site, gtd->build_drafts);
+        generate_src_dir(gtd->output, gtd->src_dir, gtd->build_drafts);
         html_dirty = true;
         ReleaseMutex(g_generate_mutex);
     }
@@ -1385,171 +1385,198 @@ DWORD generate_proc(void *data)
 int main(int argc, char **argv)
 {
     if (argc < 3) {
-        LOG_INFO("usage: fsg -site=path -webroot=path [-drafts]");
+        LOG_INFO("usage: fsg generate|server -src=path -output=path [-drafts]");
         return 1;
     }
     
-    String webroot{};
-    String site{};
+    String output{};
+    String src_dir{};
+    
+    enum {
+        RUN_MODE_NONE,
+        RUN_MODE_GENERATE,
+        RUN_MODE_SERVER
+    } run_mode = RUN_MODE_NONE;
+    
     bool build_drafts = false;
     
     for (i32 i = 1; i < argc; i++) {
         String a{ argv[i], (i32)strlen(argv[i]) };
-        if (starts_with(a, "-webroot=")) {
-            webroot = { a.bytes+strlen("-webroot="), a.length-(i32)strlen("-webroot=") };
-        } else if (starts_with(a, "-site=")) {
-            site = { a.bytes+strlen("-site="), a.length-(i32)strlen("-site=") };
+        if (starts_with(a, "generate")) {
+            if (run_mode != 0) {
+                LOG_ERROR("can only supply one of generate|server");
+                return 1;
+            }
+            run_mode = RUN_MODE_GENERATE;
+        } else if (starts_with(a, "server")) {
+            if (run_mode != 0) {
+                LOG_ERROR("can only supply one of generate|server");
+                return 1;
+            }
+            run_mode = RUN_MODE_SERVER;
+        } else if (starts_with(a, "-output=")) {
+            output = { a.bytes+strlen("-output="), a.length-(i32)strlen("-output=") };
+        } else if (starts_with(a, "-src=")) {
+            src_dir = { a.bytes+strlen("-src="), a.length-(i32)strlen("-src=") };
         } else if (starts_with(a, "-drafts")) {
             build_drafts = true;
         } else {
-            LOG_INFO("usage: fsg -webroot=path");
+            LOG_INFO("usage: fsg -output=path");
         }
     }
     
-    if (webroot.length == 0) {
-        LOG_ERROR("empty webroot path");
+    if (run_mode == 0) {
+        LOG_ERROR("must supply one of generate|server");
         return 1;
     }
     
-    if (site.length == 0) {
-        LOG_ERROR("empty site path");
+    if (output.length == 0) {
+        LOG_ERROR("empty output path");
         return 1;
     }
     
-    canonicalise_path(webroot);
-    canonicalise_path(site);
-    
-    generate_site(webroot, site, build_drafts);
-    g_generate_mutex = CreateMutex(NULL, FALSE, NULL);
-    GeneratorThreadData gen_thread_data{ webroot, site, build_drafts };
-    HANDLE gen_thread = CreateThread(NULL, 8*1024*1024, &generate_proc, &gen_thread_data, 0, nullptr);
-    (void)gen_thread;
-    
-    WSADATA wsa_data;
-    int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-    if (result != NO_ERROR) {
-        LOG_ERROR("WSAStartup failed: %d", result);
-        return 1;
-    }
-    defer { WSACleanup(); };
-    
-    SOCKET lis_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (lis_socket == INVALID_SOCKET) {
-        LOG_ERROR("socket creation failed: %ld", WSAGetLastError());
-        return 1;
-    }
-    defer { closesocket(lis_socket); };
-    
-    sockaddr_in service{};
-    service.sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &service.sin_addr);
-    service.sin_port = htons(80);
-    
-    if (bind(lis_socket, (SOCKADDR*)&service, sizeof service) == SOCKET_ERROR) {
-        LOG_ERROR("bind failed: %ld", WSAGetLastError());
+    if (src_dir.length == 0) {
+        LOG_ERROR("empty src_dir path");
         return 1;
     }
     
-    if (listen(lis_socket, 1) == SOCKET_ERROR) {
-        LOG_ERROR("listen failed: %ld", WSAGetLastError());
-        return 1;
-    }
+    canonicalise_path(output);
+    canonicalise_path(src_dir);
     
-    while (true) {
-        LOG_INFO("waiting incoming connection");
-        SOCKET in_socket = accept(lis_socket, NULL, NULL);
-        if (in_socket == INVALID_SOCKET) {
-            LOG_ERROR("accept failed with error: %ld", WSAGetLastError());
+    generate_src_dir(output, src_dir, build_drafts);
+    
+    if (run_mode == RUN_MODE_SERVER) {
+        g_generate_mutex = CreateMutex(NULL, FALSE, NULL);
+        GeneratorThreadData gen_thread_data{ output, src_dir, build_drafts };
+        HANDLE gen_thread = CreateThread(NULL, 8*1024*1024, &generate_proc, &gen_thread_data, 0, nullptr);
+        (void)gen_thread;
+
+        WSADATA wsa_data;
+        int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+        if (result != NO_ERROR) {
+            LOG_ERROR("WSAStartup failed: %d", result);
             return 1;
         }
-        LOG_INFO("client connected");
+        defer { WSACleanup(); };
 
-        defer { 
-            LOG_INFO("closing socket");
-            closesocket(in_socket); 
-        };
-        
-        char buffer[2048];
-
-        // TODO(jesper): actually support having the http request across multiple recv calls
-        // to do that I need to partially parse the headers as I receive, checking for Content-Length
-        // and double newline header terminators
-        int result = recv(in_socket, buffer, sizeof buffer, 0);
-        while (result > 0) {
-            LOG_INFO("received bytes: %d", result);
-            Lexer lexer{ buffer, buffer+result, "http socket" };
-
-            Token t;
-            if (!require_next_token(&lexer, TOKEN_IDENTIFIER, &t)) break;
-            if (t.str == "GET") {
-                if (!require_next_token(&lexer, TOKEN_WHITESPACE, LEXER_FLAG_NONE, &t)) break;
-
-                t = next_token(&lexer, LEXER_FLAG_NONE);
-                String path = t.str;
-
-                t = next_token(&lexer, LEXER_FLAG_NONE);
-                while (t.type != TOKEN_EOF && t.type != TOKEN_WHITESPACE) {
-                    path.length += t.str.length;
-                    t = next_token(&lexer, LEXER_FLAG_NONE);
-                }
-
-                if (!eat_until(&lexer, TOKEN_NEWLINE, &t)) break;
-
-                while (t.type != TOKEN_EOF) {
-                    t = next_token(&lexer);
-                    if (t.type == TOKEN_NEWLINE) break;
-                    if (!eat_until(&lexer, TOKEN_NEWLINE, &t)) break;
-                }
-
-                LOG_INFO("finished parsing http header with %d bytes left", (i32)(lexer.end - lexer.at));
-
-                canonicalise_path(path);
-                if (path == "\\") path = "\\index.html";
-
-                path = join_path(webroot, path);
-                defer{ free(path.bytes); };
-
-                String content_type;
-                if (ends_with(path, ".html")) {
-                    content_type = "text/html";
-                } else if (ends_with(path, ".css")) {
-                    content_type = "text/css";
-                } else if (ends_with(path, ".js")) {
-                    content_type = "application/javascript";
-                } else if (ends_with(path, ".ttf")) {
-                    content_type = "application/octet-stream";
-                } else if (ends_with(path, ".png")) {
-                    content_type = "image/png";
-                } else if (ends_with(path, ".jpg")) {
-                    content_type = "image/jpeg";
-                } else {
-                    LOG_INFO("requested unsupported file type: %.*s", path.length, path.bytes);
-                    send_header(in_socket, 403, "text/html", http_403_body.length);
-                    send_data(in_socket, http_403_body);
-                    goto req_end;
-                }
-
-                WaitForSingleObject(g_generate_mutex, INFINITE);
-
-                String contents = read_entire_file(path);
-                if (!contents.bytes) {
-                    LOG_INFO("respond: 404: %.*s", path.length, path.bytes);
-                    send_header(in_socket, 404, "text/html", http_404_body.length);
-                    send_data(in_socket, http_404_body);
-                    goto req_end;
-                }
-                defer{ destroy_string(contents); };
-
-                LOG_INFO("respond: 200");
-                send_header(in_socket, 200, content_type, contents.length);
-                send_data(in_socket, contents);
-
-                ReleaseMutex(g_generate_mutex);
-                
-                result = recv(in_socket, buffer, sizeof buffer, 0);
-            }
+        SOCKET lis_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (lis_socket == INVALID_SOCKET) {
+            LOG_ERROR("socket creation failed: %ld", WSAGetLastError());
+            return 1;
         }
+        defer { closesocket(lis_socket); };
+
+        sockaddr_in service{};
+        service.sin_family = AF_INET;
+        inet_pton(AF_INET, "127.0.0.1", &service.sin_addr);
+        service.sin_port = htons(80);
+
+        if (bind(lis_socket, (SOCKADDR*)&service, sizeof service) == SOCKET_ERROR) {
+            LOG_ERROR("bind failed: %ld", WSAGetLastError());
+            return 1;
+        }
+
+        if (listen(lis_socket, 1) == SOCKET_ERROR) {
+            LOG_ERROR("listen failed: %ld", WSAGetLastError());
+            return 1;
+        }
+
+        while (true) {
+            LOG_INFO("waiting incoming connection");
+            SOCKET in_socket = accept(lis_socket, NULL, NULL);
+            if (in_socket == INVALID_SOCKET) {
+                LOG_ERROR("accept failed with error: %ld", WSAGetLastError());
+                return 1;
+            }
+            LOG_INFO("client connected");
+
+            defer { 
+                LOG_INFO("closing socket");
+                closesocket(in_socket); 
+            };
+
+            char buffer[2048];
+
+            // TODO(jesper): actually support having the http request across multiple recv calls
+            // to do that I need to partially parse the headers as I receive, checking for Content-Length
+            // and double newline header terminators
+            int result = recv(in_socket, buffer, sizeof buffer, 0);
+            while (result > 0) {
+                LOG_INFO("received bytes: %d", result);
+                Lexer lexer{ buffer, buffer+result, "http socket" };
+
+                Token t;
+                if (!require_next_token(&lexer, TOKEN_IDENTIFIER, &t)) break;
+                if (t.str == "GET") {
+                    if (!require_next_token(&lexer, TOKEN_WHITESPACE, LEXER_FLAG_NONE, &t)) break;
+
+                    t = next_token(&lexer, LEXER_FLAG_NONE);
+                    String path = t.str;
+
+                    t = next_token(&lexer, LEXER_FLAG_NONE);
+                    while (t.type != TOKEN_EOF && t.type != TOKEN_WHITESPACE) {
+                        path.length += t.str.length;
+                        t = next_token(&lexer, LEXER_FLAG_NONE);
+                    }
+
+                    if (!eat_until(&lexer, TOKEN_NEWLINE, &t)) break;
+
+                    while (t.type != TOKEN_EOF) {
+                        t = next_token(&lexer);
+                        if (t.type == TOKEN_NEWLINE) break;
+                        if (!eat_until(&lexer, TOKEN_NEWLINE, &t)) break;
+                    }
+
+                    LOG_INFO("finished parsing http header with %d bytes left", (i32)(lexer.end - lexer.at));
+
+                    canonicalise_path(path);
+                    if (path == "\\") path = "\\index.html";
+
+                    path = join_path(output, path);
+                    defer{ free(path.bytes); };
+
+                    String content_type;
+                    if (ends_with(path, ".html")) {
+                        content_type = "text/html";
+                    } else if (ends_with(path, ".css")) {
+                        content_type = "text/css";
+                    } else if (ends_with(path, ".js")) {
+                        content_type = "application/javascript";
+                    } else if (ends_with(path, ".ttf")) {
+                        content_type = "application/octet-stream";
+                    } else if (ends_with(path, ".png")) {
+                        content_type = "image/png";
+                    } else if (ends_with(path, ".jpg")) {
+                        content_type = "image/jpeg";
+                    } else {
+                        LOG_INFO("requested unsupported file type: %.*s", path.length, path.bytes);
+                        send_header(in_socket, 403, "text/html", http_403_body.length);
+                        send_data(in_socket, http_403_body);
+                        goto req_end;
+                    }
+
+                    WaitForSingleObject(g_generate_mutex, INFINITE);
+
+                    String contents = read_entire_file(path);
+                    if (!contents.bytes) {
+                        LOG_INFO("respond: 404: %.*s", path.length, path.bytes);
+                        send_header(in_socket, 404, "text/html", http_404_body.length);
+                        send_data(in_socket, http_404_body);
+                        goto req_end;
+                    }
+                    defer{ destroy_string(contents); };
+
+                    LOG_INFO("respond: 200");
+                    send_header(in_socket, 200, content_type, contents.length);
+                    send_data(in_socket, contents);
+
+                    ReleaseMutex(g_generate_mutex);
+
+                    result = recv(in_socket, buffer, sizeof buffer, 0);
+                }
+            }
 req_end:;
+        }
     }
     
     return 0;
