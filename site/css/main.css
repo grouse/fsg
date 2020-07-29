@@ -368,7 +368,9 @@ code.block {
 	tab-size: 4;
 	-moz-tab-size: 4;
 
-	border: 1px solid #d6dd81;
+	overflow-x: scroll;
+
+	border: 1px solid #000000;
 	padding: 5px 15px;
 	margin-left: -1em;
 	margin-right: -1em;
