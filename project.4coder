@@ -1,3 +1,25 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fd1b748940c5196a105daf2b17dbb2094eaa8f78cef1675959f128ce5e2877d8
-size 367
+version(1);
+project_name = "fsg";
+
+patterns = {
+"*.html",
+"*.js",
+"*.css",
+
+"*.4coder",
+"*.sh",
+"*.bat",
+
+"*.cpp"
+};
+
+blacklist_patterns = {
+".*"
+};
+
+load_paths = {
+    { {
+        { ".", .relative = true, .recursive = true, },
+    }, .os = "win" },
+};
+

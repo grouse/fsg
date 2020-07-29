@@ -1,3 +1,33 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:81cccbe77d8cd0ffd6458fce759d604346e2d1fa7afe54c58df30fb6b2a1dcad
-size 1112
+//===- FileHeaderReader.h - XRay Trace File Header Reading Function -------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file declares functions that can load an XRay log header from various
+// sources.
+//
+//===----------------------------------------------------------------------===//
+#ifndef LLVM_XRAY_FILEHEADERREADER_H
+#define LLVM_XRAY_FILEHEADERREADER_H
+
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/DataExtractor.h"
+#include "llvm/Support/Error.h"
+#include "llvm/XRay/XRayRecord.h"
+#include <cstdint>
+
+namespace llvm {
+namespace xray {
+
+/// Convenience function for loading the file header given a data extractor at a
+/// specified offset.
+LLVM_ABI Expected<XRayFileHeader>
+readBinaryFormatHeader(DataExtractor &HeaderExtractor, uint64_t &OffsetPtr);
+
+} // namespace xray
+} // namespace llvm
+
+#endif // LLVM_XRAY_FILEHEADERREADER_H
