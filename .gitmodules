@@ -1,6 +1,3 @@
-[submodule "core"]
-	path = core
-	url = https://github.com/grouse/grs
-[submodule "tools/enki"]
-	path = tools/enki
-	url = https://github.com/grouse/enki
+version https://git-lfs.github.com/spec/v1
+oid sha256:b854fa74bf58b111c5b925a0883d3b18d76200be84ce48e01ce6d48a8146b64b
+size 151
