@@ -963,13 +963,14 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
 {
     String str;
     if (parse_string(lexer, &str, t_out)) {
-        if (str == "yes" || "true") {
+        if (str == "yes" || str == "true") {
             *bool_out = true;
             return true;
-        } else if (str == "no" || "false") {
+        } else if (str == "no" || str == "false") {
             *bool_out = false;
             return true;
         }
+        PARSE_ERROR(lexer, "unexpected identifier parsing bool: %.*s", STRFMT(str));
         return false;
     }
     return false;
