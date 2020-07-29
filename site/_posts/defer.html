@@ -1,0 +1,77 @@
+<!-- fsg:
+created 2017-04-14;
+title defer;
+-->
+
+<p>I'm not a big fan of the destructors in C++. Don't get me wrong, they can certainly be useful. I just think they solve a problem in a way that could've been implemented in a much more powerful way, without the implicit changes in behaviour or performance characteristics that adding a destructor comes with. I'm also not at all a fan of non-trivial code hidden away in destructors that I wasn't expecting, but that's primarily a programmer error.</p>
+
+<!-- fsg: brief; -->
+
+<p>Enough teasing, here's the code:</p>
+
+<code class="block">template &lt;typename F&gt;
+struct Defer {
+	Defer(F f) : f(f) {}
+	~Defer() { f(); }
+	F f;
+};
+
+template &lt;typename F&gt;
+Defer&lt;F&gt; defer_create(F f) {
+	return Defer&lt;F&gt;(f);
+};
+
+#define defer__(line) defer_ ## line
+#define defer_(line) defer__(line)
+
+struct DeferDummy {};
+
+template&lt;typename F&gt;
+Defer&lt;F&gt;operator+ (DeferDummy, F&& f)
+{
+	return defer_create&lt;F&gt;(std::forward&lt;F&gt;(f));
+}
+
+#define defer auto defer_(__LINE__) = DeferDummy() + [&]()
+</code>
+
+<p>Full credit of this snippet goes to the folks over at https://handmade.network where this is copied from, with a small change to the naming of the expansion macros to not clash with glibc.</p>
+
+<div class="note">
+<p>Don't prepend anything with double underscore, you're probably gonna clash with
+something, somewhere as it's reserved by the compilers in C and C++.</p>
+</div>
+
+<p>In short, the way this works is that you pass a lambda expression to the constructor for the <code>Defer</code> struct, that it calls during its destructor. The <code>DeferDummy</code> struct exists so that we can default-construct an object and pass in the lambda using <code>operator+</code>, this is entirely done in order to keep the defer macro usage neat and simple.</p>
+
+<p>I've seen this sort of thing mentioned in a few places, and it's certainly not a concept invented by C++ macro magicians. It's a first class feature in Go, Swift, and probably a bunch of other languages. Personally, I was first introduced to it during one of Jonathan Blow's JAI compiler streams. It's just recently that I decided to actually incorporate it into my own projects and see how I actually like it in practice.</p>
+
+<p>It turns out, I like it. I like it a lot. But first, some usage code to figure out what that macro magic actually allows us to do.</p>
+
+<code class="block">void foo()
+{
+	defer { printf("world 1!\n"); };
+	defer { printf("hello, "); };
+
+	defer {
+		printf("hello, ");
+		printf("world 2!\n");
+	};
+}
+
+// outputs:
+//   hello world 2!
+//   hello world 1!
+</code>
+
+<p>Referring back to the macro magic, the first statement expands into</p>
+
+<code class="block">auto defer_(__LINE__) = DeferDummy() + [&](){ printf("world 1!\n"); };</code>
+
+<p>In other words, the defer macro starts a lambda expression declaration but doesn't properly open or close it, we do that ourselves with the <code>{};</code> The <code>;</code> after the curly braces might look weird at first glance, and would indeed be the first thing   would want removed in a proper first class version of defer, but it's required as long as we're forced to hack the feature in using destructors and lambda expressions.</p>
+
+<p>Because <code>defer</code> is implemented using destructors of <code>Defer</code> objects, the destructors are called in opposite order of declaration, like unwinding a stack. This turns out to not only make a lot of sense, but be exactly what we want, as we want any defer statements close to the beginning of a scope to be called later than the ones near the end, in order to get proper order of execution in the cases where the latter defer depends on state cleaned up by the former defer.</p>
+
+<p>There's a few things this allows us to do. The most obvious one is to add a defer statement freeing a resource or closing a file handle just after we've opened it, making it much more obvious that this is taken care of. This is particularly useful if you like to do early returns, while also avoiding use of `goto` to jump to clean-up code. Of course, all of this is one of the primary reasons for a destructor, but defer is much more versatile as you can trivially customise which statements are execute  or whether it depends on some state in the function, without having to change or implement a destructor for a struct which would incur those changes everywhere the struct is already used, potentially changing performance characteristics or behaviour dependence.</p>
+
+<p>Defer is one of the only things I really want added to the C++ specification as a first class citizen, but I've all but given up on the C++ committee actually adding something useful to the language, so this macro magic solution will keep me happy for now.</p>

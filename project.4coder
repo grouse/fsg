@@ -1,0 +1,25 @@
+version(1);
+project_name = "fsg";
+
+patterns = {
+"*.html",
+"*.js",
+"*.css",
+
+"*.4coder",
+"*.sh",
+"*.bat",
+
+"*.cpp"
+};
+
+blacklist_patterns = {
+".*"
+};
+
+load_paths = {
+    { {
+        { ".", .relative = true, .recursive = true, },
+    }, .os = "win" },
+};
+
