@@ -726,9 +726,7 @@ void remove_files(String in_dir)
             defer { FindClose(h); };
 
             do {
-                if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) {
-                    continue;
-                }
+                if (fd.cFileName[0] == '.') continue;
 
                 String path = join_path(root, String{ fd.cFileName, (i32)strlen(fd.cFileName) });
                 if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -1543,7 +1541,9 @@ int main(int argc, char **argv)
                         content_type = "text/css";
                     } else if (ends_with(path, ".js")) {
                         content_type = "application/javascript";
-                    } else if (ends_with(path, ".ttf")) {
+                    } else if (ends_with(path, ".ttf") || 
+                               ends_with(path, ".woff2")) 
+                    {
                         content_type = "application/octet-stream";
                     } else if (ends_with(path, ".png")) {
                         content_type = "image/png";

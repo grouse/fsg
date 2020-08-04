@@ -12,8 +12,7 @@ if not exist %BUILD_DIR%\webroot %BUILD_DIR%\webroot
 
 PUSHD %BUILD_DIR%
 @ECHO on
-fsg.exe generate -src=%ROOT%\site -output=%BUILD_DIR%\webroot
-xcopy /Y /S /F webroot %INSTALL_DIR%
+fsg.exe generate -src=%ROOT%\site -output=%INSTALL_DIR%
 @ECHO off
 POPD
 
