@@ -1,4 +1,4 @@
-@ECHO off
+@ECHO OFF
 
 set start_time=%time%
 
@@ -16,9 +16,7 @@ SET INCLUDE_DIR=
 SET LIBS=-lWs2_32.lib
 
 PUSHD %BUILD_DIR%
-@ECHO on
 clang++ -O0 %FLAGS% %INCLUDE_DIR% %LIBS% -o fsg.exe %ROOT%\fsg.cpp
-@ECHO off
 POPD
 
 set end_time=%time%
@@ -38,4 +36,5 @@ if %hours% lss 0 set /a hours = 24%hours%
 if 1%ms% lss 100 set ms=0%ms%
 
 set /a totalsecs = %hours%*3600 + %mins%*60 + %secs%
+
 echo compilation took %totalsecs%.%ms% seconds

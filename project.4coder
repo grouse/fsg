@@ -14,12 +14,14 @@ patterns = {
 };
 
 blacklist_patterns = {
-".*"
+".*",
 };
 
 load_paths = {
     { {
-        { ".", .relative = true, .recursive = true, },
-    }, .os = "win" },
+        { ".", .relative = true, .recursive = false, },
+        { "src", .relative = true, .recursive = true, },
+        { "site", .relative = true, .recursive = true, },
+}, .os = "win" },
 };
 

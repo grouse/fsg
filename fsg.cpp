@@ -133,6 +133,7 @@ void fsg_log(const char *fmt, ...)
         buffer[length] = '\n';
         buffer[length+1] = '\0';
         OutputDebugStringA(buffer);
+        printf("%s", buffer);
     }
 }
 
@@ -535,7 +536,7 @@ struct HttpBuilder {
 
 struct StringBuilder {
     struct Block {
-        char data[256];
+        char data[4096];
         Block *next = nullptr;
         i32 written = 0;
     };
