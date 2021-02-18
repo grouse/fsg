@@ -17,7 +17,8 @@ title "live code editing";
 
 <p>So how do we get the fast iteration time of scripting languages using ordinary C or C++? It turns out, it's actually not that complicated. In fact, most of us have been only a few steps away from achieving it while doing other things. The solution is dynamically linked libraries, <code>.dll</code> on Windows, <code>.so</code> on Linux.</p>
 
-<code class="block">// file: foo.c
+```
+// file: foo.c
 void foo(int a, int b)
 {
 	// ...
@@ -43,7 +44,7 @@ void* load_foo()
 
 	return lib;
 }
-</code>
+```
 
 <p>The above snippet is a simple example of how to dynamically load code at runtime, the code is written for Linux using <code>dlopen</code> and <code>dlsym</code> functions, the Windows equivalent is copied verbatim but with the necessary replacements to use <code>LoadLibrary</code> and <code>GetProcAddress</code> instead of <code>dlopen</code> and <code>dlsym</code>.</p>
 
@@ -70,7 +71,8 @@ that need processing or we have found in some other way that we need to perform 
 
 <p>After these code changes the function to load all the game code in Leary off of the disk looks like this:</p>
 
-<code class="block">#define DLOAD_FUNC(lib, name) (name##_t*)dlsym(lib, #name)
+```
+#define DLOAD_FUNC(lib, name) (name##_t*)dlsym(lib, #name)
 
 void* load_code()
 {
@@ -90,7 +92,7 @@ void* load_code()
 
 	return lib;
 }
-</code>
+```
 
 <h1>Coalesce state</h1>
 
@@ -120,7 +122,8 @@ void* load_code()
 
 <p>At last. We've coalesced all the state required into a single object that we can pass into the drastically reduced entry point interface that we've defined, and we've (hopefully) cleaned up all static variables or made sure they all behave well when being initialised multiple times. It's time to write the main loop that pulls it all together and reloads the code when appropriate.</p>
 
-<code class="block">typedef void game_init_t(GameState*);
+```
+typedef void game_init_t(GameState*);
 typedef void game_pre_reload_t(GameState*);
 typedef void game_reload_t(GameState*);
 typedef void game_update_t(GameState*);
@@ -174,7 +177,7 @@ void main(int, char **)
 
 	return 0;
 }
-</code>
+```
 
 <p>Naturally, reloading the game code every frame is a horrendously bad idea. It'll tank the performance and you're pretty much asking for trouble. There are a number of ways to get around that problem: either reload the code after some predetermined, arbitrary amount of time, or use a way to determine whether the <code>game.so</code> file has changed and only reload the code when that happens. To accomplish the latter you can simply query the last modified date of the file whenever you want to reload it, or you can look into the various platform specific ways that exist to be notified via callbacks or events when a file changes. Right now in Leary I simply query the last modified time of the dynamic library every second and reload it if it has changed.</p>
 

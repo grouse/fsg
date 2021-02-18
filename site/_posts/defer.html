@@ -9,16 +9,17 @@ title defer;
 
 <p>Enough teasing, here's the code:</p>
 
-<code class="block">template &lt;typename F&gt;
+```
+template <typename F>
 struct Defer {
 	Defer(F f) : f(f) {}
 	~Defer() { f(); }
 	F f;
 };
 
-template &lt;typename F&gt;
-Defer&lt;F&gt; defer_create(F f) {
-	return Defer&lt;F&gt;(f);
+template <typename F>
+Defer<F> defer_create(F f) {
+	return Defer<F>(f);
 };
 
 #define defer__(line) defer_ ## line
@@ -26,14 +27,14 @@ Defer&lt;F&gt; defer_create(F f) {
 
 struct DeferDummy {};
 
-template&lt;typename F&gt;
-Defer&lt;F&gt;operator+ (DeferDummy, F&& f)
+template<typename F>
+Defer<F>operator+ (DeferDummy, F&& f)
 {
-	return defer_create&lt;F&gt;(std::forward&lt;F&gt;(f));
+	return defer_create<F>(std::forward<F>(f));
 }
 
 #define defer auto defer_(__LINE__) = DeferDummy() + [&]()
-</code>
+```
 
 <p>Full credit of this snippet goes to the folks over at https://handmade.network where this is copied from, with a small change to the naming of the expansion macros to not clash with glibc.</p>
 
@@ -42,13 +43,14 @@ Defer&lt;F&gt;operator+ (DeferDummy, F&& f)
 something, somewhere as it's reserved by the compilers in C and C++.</p>
 </div>
 
-<p>In short, the way this works is that you pass a lambda expression to the constructor for the <code>Defer</code> struct, that it calls during its destructor. The <code>DeferDummy</code> struct exists so that we can default-construct an object and pass in the lambda using <code>operator+</code>, this is entirely done in order to keep the defer macro usage neat and simple.</p>
+<p>In short, the way this works is that you pass a lambda expression to the constructor for the <code>Defer</code> struct, that it calls during its destructor. The `DeferDummy` struct exists so that we can default-construct an object and pass in the lambda using <code>operator+</code>, this is entirely done in order to keep the defer macro usage neat and simple.</p>
 
 <p>I've seen this sort of thing mentioned in a few places, and it's certainly not a concept invented by C++ macro magicians. It's a first class feature in Go, Swift, and probably a bunch of other languages. Personally, I was first introduced to it during one of Jonathan Blow's JAI compiler streams. It's just recently that I decided to actually incorporate it into my own projects and see how I actually like it in practice.</p>
 
 <p>It turns out, I like it. I like it a lot. But first, some usage code to figure out what that macro magic actually allows us to do.</p>
 
-<code class="block">void foo()
+```
+void foo()
 {
 	defer { printf("world 1!\n"); };
 	defer { printf("hello, "); };
@@ -62,7 +64,7 @@ something, somewhere as it's reserved by the compilers in C and C++.</p>
 // outputs:
 //   hello world 2!
 //   hello world 1!
-</code>
+```
 
 <p>Referring back to the macro magic, the first statement expands into</p>
 

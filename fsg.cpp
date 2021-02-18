@@ -178,6 +178,9 @@ enum FsgTokenType : u8 {
     TOKEN_START = 127,
     
     TOKEN_ANCHOR,
+    TOKEN_CODE_BLOCK,
+    TOKEN_CODE_INLINE,
+
     TOKEN_IDENTIFIER,
     TOKEN_COMMENT,
     
@@ -293,6 +296,37 @@ Token next_token(Lexer *lexer, LexerFlags flags)
             result.str.length = (i32)(lexer->at - result.str.bytes);
             result.str.length = (i32)(lexer->at - result.str.bytes - 3);
             if (!(flags & LEXER_FLAG_EAT_COMMENT)) return result;
+        } else if (starts_with(lexer, "```")) {
+            Token result;
+            result.type = TOKEN_CODE_BLOCK;
+            
+            lexer->at += 3;
+            while (lexer->at < lexer->end && 
+                   (*lexer->at == ' ' || *lexer->at == '\n' || *lexer->at == '\r')) 
+            {
+                lexer->at++;
+            }
+            
+            result.str.bytes = lexer->at++;
+            while (lexer->at < lexer->end && !starts_with(lexer, "```")) {
+                lexer->at++;
+            }
+            result.str.length = (i32)(lexer->at - result.str.bytes);
+            
+            if (starts_with(lexer, "```")) lexer->at += 3;
+            return result;
+        } else if (starts_with(lexer, "`")) {
+            Token result;
+            result.type = TOKEN_CODE_INLINE;
+            
+            lexer->at += 1;
+            result.str.bytes = lexer->at++;
+            while (lexer->at < lexer->end && *lexer->at != '`') {
+                lexer->at++;
+            }
+            result.str.length = (i32)(lexer->at - result.str.bytes);
+            if (*lexer->at == '`') lexer->at += 1;
+            return result;
         } else if (lexer->flags & LEXER_FLAG_ENABLE_ANCHOR && 
                    starts_with(lexer, "<a")) 
         {
@@ -1226,6 +1260,14 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                         }
                     }
                 }
+            } else if (t.type == TOKEN_CODE_BLOCK) {
+                append_string(&content, "<code class=\"block\">");
+                append_escape_html(&content, t.str);
+                append_string(&content, "</code>");
+            } else if (t.type == TOKEN_CODE_INLINE) {
+                append_string(&content, "<code>");
+                append_escape_html(&content, t.str);
+                append_string(&content, "</code>");
             } else if (t.type == TOKEN_ANCHOR) {
                 i32 length = (i32)(t.str.bytes - ptr);
                 if (length > 0) append_string(&content, String{ ptr, length });
