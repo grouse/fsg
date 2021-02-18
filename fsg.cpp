@@ -17,6 +17,7 @@ extern "C" void* malloc(size_t size);
 using u8 = unsigned char;
 using i32 = int;
 using u32 = unsigned int;
+using i64 = signed long long;
 
 template <typename F>
 struct Defer {
@@ -107,7 +108,11 @@ struct String {
     {
         return strncmp(bytes, rhs.bytes, MIN(length, rhs.length)) < 0;
     }
+};
 
+struct TagProperty {
+    String key;
+    String value;
 };
 
 void destroy_string(String str)
@@ -146,8 +151,13 @@ enum LexerFlags : u32 {
     LEXER_FLAG_EAT_NEWLINE = 1 << 0,
     LEXER_FLAG_EAT_WHITESPACE = 1 << 1,
     LEXER_FLAG_EAT_COMMENT = 1 << 2,
+    
+    // TODO(jesper): this is a super dirty hack that probably requires some pretty
+    // long winded rewrites of the whole way I deal with templates and sections etc to
+    // generate the page
+    LEXER_FLAG_ENABLE_ANCHOR = 1 << 3,
 
-    LEXER_FLAGS_DEFAULT = LEXER_FLAG_EAT_WHITESPACE
+    LEXER_FLAGS_DEFAULT = LEXER_FLAG_EAT_WHITESPACE,
 };
 
 struct Lexer {
@@ -167,6 +177,7 @@ struct Lexer {
 enum FsgTokenType : u8 {
     TOKEN_START = 127,
     
+    TOKEN_ANCHOR,
     TOKEN_IDENTIFIER,
     TOKEN_COMMENT,
     
@@ -175,7 +186,6 @@ enum FsgTokenType : u8 {
     
     TOKEN_EOF,
 };
-
 const char* token_type_str(FsgTokenType type)
 {
     switch (type) {
@@ -224,6 +234,16 @@ bool is_comment_end(Lexer *lexer)
     return (i32)(lexer->end - lexer->at) >= 3 && starts_with(String{ lexer->at, 3 }, "-->");
 }
 
+i32 bytes_remain(Lexer *lexer)
+{
+    return (i32)(lexer->end - lexer->at);
+}
+
+bool starts_with(Lexer *lexer, String str)
+{
+    return starts_with(String{ lexer->at, bytes_remain(lexer) }, str);
+}
+
 
 Token next_token(Lexer *lexer, LexerFlags flags)
 {
@@ -261,6 +281,7 @@ Token next_token(Lexer *lexer, LexerFlags flags)
             i32 comment_level = 1;
             while (lexer->at < lexer->end) {
                 if (is_comment_end(lexer)) {
+                    lexer->at += 3;
                     if (--comment_level <= 0) break;
                 } else if (is_comment_start(lexer)) {
                     comment_level++;
@@ -270,7 +291,25 @@ Token next_token(Lexer *lexer, LexerFlags flags)
             }
             
             result.str.length = (i32)(lexer->at - result.str.bytes);
+            result.str.length = (i32)(lexer->at - result.str.bytes - 3);
             if (!(flags & LEXER_FLAG_EAT_COMMENT)) return result;
+        } else if (lexer->flags & LEXER_FLAG_ENABLE_ANCHOR && 
+                   starts_with(lexer, "<a")) 
+        {
+            Token result;
+            result.type = TOKEN_ANCHOR;
+            result.str.bytes = lexer->at++;
+            
+            while (lexer->at < lexer->end) {
+                if (starts_with(lexer, "</a>")) {
+                    lexer->at += 4;
+                    break;
+                }
+                lexer->at++;
+            }
+            
+            result.str.length = (i32)(lexer->at - result.str.bytes);
+            return result;
         } else if (is_alpha(lexer->at[0]) || is_numeric(lexer->at[0]) || (u8)lexer->at[0] >= 128) {
             Token result;
             result.type = TOKEN_IDENTIFIER;
@@ -374,6 +413,84 @@ bool eat_until(Lexer *lexer, char c, Token *out)
     return true;
 }
 
+Array<TagProperty> parse_html_tag_properties(String tag)
+{
+    DynamicArray<TagProperty> properties{};
+
+    char *at = tag.bytes;
+    char *end = tag.bytes + tag.length;
+
+    at++;
+    while (at < end) {
+        if (*at == ' ' || *at == '>') break;
+        at++;
+    }
+
+    if (*at == '>') return properties;
+
+    at++;
+    while (at < end) {
+        TagProperty property{};
+        
+        if (*at == '>') goto end;
+        while (at < end && *at == ' ') at++;
+
+        if (is_alpha(at[0])) {
+            property.key.bytes = at++;
+            while (at < end) {
+                if (*at == '>' || *at == '=' || *at == ' ') break;
+                at++;
+            }
+            property.key.length = (i32)(at - property.key.bytes);
+
+            if (at < end && *at == '=') {
+                at += 2;
+                property.value.bytes = at++;
+                while (at < end) {
+                    if (*at == '"') break;
+                    at++;
+                }
+                property.value.length = (i32)(at - property.value.bytes);
+                at++;
+            }
+        }
+
+        if (property.key.length > 0) {
+            array_add(&properties, property);
+        }
+        
+    }
+
+end:
+    return properties;
+}
+
+String parse_html_tag_inner(String tag)
+{
+    char *at = tag.bytes;
+    char *end = tag.bytes + tag.length;
+
+    at++;
+    while (at < end) {
+        if (*at == '>') break;
+        at++;
+    }
+    
+    at++;
+
+    String inner{};
+    inner.bytes = at++;
+    
+    while (at < end) {
+        if (*at == '<') break;
+        at++;
+    }
+    
+    inner.length = (i32)(at - inner.bytes);
+    return inner;
+}
+
+
 
 
 struct HttpBuilder {
@@ -442,6 +559,53 @@ void append_string(StringBuilder *sb, String str)
         
         rest -= to_write;
         written += to_write;
+    }
+}
+
+void append_char(StringBuilder *sb, char c)
+{
+    i32 available = sizeof sb->current->data - sb->current->written;
+    
+    if (available < 1) {
+        StringBuilder::Block *block = (StringBuilder::Block*)malloc(sizeof(StringBuilder::Block));
+        memset(block, 0, sizeof *block);
+
+        sb->current->next = block;
+        sb->current = block;
+    }
+
+    *(sb->current->data+sb->current->written) = c;
+    sb->current->written += 1;
+}
+
+void append_stringf(StringBuilder *builder, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    i32 available = sizeof builder->current->data - builder->current->written;
+    i32 length = vsnprintf(builder->current->data + builder->current->written, available-1, fmt, args);
+
+    if (length > available-1) {
+        char *buffer = (char*)malloc(length+1);
+        vsnprintf(buffer, length+1, fmt, args);
+
+        append_string(builder, String{ buffer, length });
+    } else {
+        builder->current->written += length;
+    }
+
+    va_end(args);
+}
+
+void append_escape_html(StringBuilder *sb, String str)
+{
+    for (i32 i = 0; i < str.length; i++) {
+        switch (str[i]) {
+        case '<': append_string(sb, "&lt;"); break;
+        case '>': append_string(sb, "&gt;"); break;
+        default: append_char(sb, str[i]); break;
+        }
     }
 }
 
@@ -998,7 +1162,9 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
         Post post;
         Lexer lexer;
         Token t;
-        
+        char *ptr;
+        StringBuilder content{};
+
         String filename{ p.bytes+posts_src_path.length+1, p.length-posts_src_path.length-1};
 
         String contents = read_entire_file(p);
@@ -1008,10 +1174,14 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
         }
         
         post = Post{};
-        post.content = contents;
-        post.brief = contents;
-        
-        lexer = Lexer{ post.content.bytes, post.content.bytes+post.content.length, p };
+        lexer = Lexer{ 
+            contents.bytes, 
+            contents.bytes+contents.length, 
+            p, 
+            (LexerFlags)(LEXER_FLAG_NONE | LEXER_FLAG_ENABLE_ANCHOR)
+        };
+        ptr = lexer.at;
+
         t = next_token(&lexer);
         while (t.type != TOKEN_EOF) {
             if (t.type == TOKEN_COMMENT) {
@@ -1031,7 +1201,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                         if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_post_file;
                         if (!require_next_token(&fsg_lexer, TOKEN_EOF, &t2)) goto next_post_file;
                         
-                        post.brief.length = (i32)(lexer.at + 3 - post.brief.bytes);
+                        post.brief = to_string(&content);
                     } else {
                         while (t2.type != TOKEN_EOF) {
                             if (is_identifier(t2, "title")) {
@@ -1056,10 +1226,35 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                         }
                     }
                 }
+            } else if (t.type == TOKEN_ANCHOR) {
+                i32 length = (i32)(t.str.bytes - ptr);
+                if (length > 0) append_string(&content, String{ ptr, length });
+                
+                Array<TagProperty> properties = parse_html_tag_properties(t.str);
+                String inner = parse_html_tag_inner(t.str);
+                    
+                bool has_href = false;
+                append_string(&content, "<a");
+                
+                for (TagProperty prop : properties) {
+                    if (prop.key == "href") has_href = true;
+                    append_stringf(&content, " %.*s=\"%.*s\"", STRFMT(prop.key), STRFMT(prop.value));
+                }
+                
+                if (!has_href) append_stringf(&content, " href=\"%.*s\"", STRFMT(inner));
+                append_stringf(&content, ">%.*s</a>", STRFMT(inner));
+            } else {
+                i32 length = (i32)(lexer.at - ptr);
+                if (length > 0) append_string(&content, String{ ptr, length });
             }
             
+            ptr = lexer.at;
             t = next_token(&lexer);
         }
+        
+        post.content = to_string(&content);
+        if (post.brief.length == 0) post.brief = post.content;
+        post.brief = post.content;
         
         post.path = join_path(posts_dst_path, filename);
         post.url = join_url("/posts", filename);
@@ -1530,10 +1725,12 @@ int main(int argc, char **argv)
 
                     canonicalise_path(path);
                     if (path == "\\") path = "\\index.html";
+                    
+                    LOG_INFO("HTTP GET: %.*s", STRFMT(path));
 
                     path = join_path(output, path);
                     defer{ free(path.bytes); };
-
+                    
                     String content_type;
                     if (ends_with(path, ".html")) {
                         content_type = "text/html";
