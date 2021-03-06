@@ -613,6 +613,21 @@ void append_char(StringBuilder *sb, char c)
     sb->current->written += 1;
 }
 
+String stringf(const char *fmt, ...)
+{
+    String str{};
+    
+    va_list args;
+    va_start(args, fmt);
+    
+    i32 required = vsnprintf(nullptr, 0, fmt, args);
+    str.bytes = (char*)malloc(required+2);
+    str.length = required;
+    vsnprintf(str.bytes, required+1, fmt, args);
+    
+    return str;
+}
+
 void append_stringf(StringBuilder *builder, const char *fmt, ...)
 {
     va_list args;
@@ -747,7 +762,7 @@ void send_header(SOCKET dst_socket, i32 code, String content_type, i32 content_l
 String join_path(String lhs, String rhs)
 {
     i32 required = lhs.length + rhs.length;
-    if (lhs[lhs.length]-1 != '\\' && rhs[0] != '\\') {
+    if (lhs[lhs.length-1] != '\\' && rhs[0] != '\\') {
         required += 1;
     }
     
@@ -758,8 +773,8 @@ String join_path(String lhs, String rhs)
     result.length = lhs.length;
     
     if (lhs[lhs.length-1] != '\\' && rhs[0] != '\\') {
+        result[result.length] = '\\';
         result.length += 1;
-        result[result.length-1] = '\\';
     }
 
     memcpy(result.bytes+result.length, rhs.bytes, rhs.length);
@@ -961,11 +976,8 @@ void remove_files(String in_dir)
 #endif
 }
 
-void write_file(String path, String content)
+HANDLE open_file(char *sz_path)
 {
-    char *sz_path = sz_string(path);
-    defer { free(sz_path); };
-
     HANDLE file = CreateFileA(
         sz_path,
         GENERIC_WRITE,
@@ -974,23 +986,26 @@ void write_file(String path, String content)
         CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
         nullptr);
-    
+
     if (file == INVALID_HANDLE_VALUE) {
         DWORD code = GetLastError();
         if (code == 3) {
             char *ptr = sz_path;
             char *end = ptr + strlen(ptr);
-            
+
             while (ptr < end) {
                 if (*ptr == '\\') {
                     *ptr = '\0';
                     defer{ *ptr = '\\'; };
-                    
+
                     if (CreateDirectoryA(sz_path, NULL) == 0) {
                         DWORD create_dir_error = GetLastError();
                         if (create_dir_error != ERROR_ALREADY_EXISTS) {
-                            LOG_ERROR("failed creating folder: %s, code: %d, msg: '%s'", sz_path, create_dir_error, win32_system_error_message(create_dir_error));
-                            return;
+                            LOG_ERROR("failed creating folder: %s, code: %d, msg: '%s'", 
+                                      sz_path, 
+                                      create_dir_error, 
+                                      win32_system_error_message(create_dir_error));
+                            return INVALID_HANDLE_VALUE;
                         }
                     }
                 }
@@ -998,13 +1013,38 @@ void write_file(String path, String content)
             }
         } else {
             LOG_ERROR("failed creating file: '%s', code: %d, msg: '%s'", sz_path, code, win32_system_error_message(code));
-            return;
+            return INVALID_HANDLE_VALUE;
         }
     }
+    
+    return file;
+}
+
+void write_file(String path, String content)
+{
+    char *sz_path = sz_string(path);
+    defer { free(sz_path); };
+
+    HANDLE file = open_file(sz_path);
     defer{ CloseHandle(file); };
     
     DWORD bytes_written;
     WriteFile(file, content.bytes, content.length, &bytes_written, nullptr);
+}
+
+void write_file(String path, StringBuilder sb)
+{
+    char *sz_path = sz_string(path);
+    defer { free(sz_path); };
+
+    HANDLE file = open_file(sz_path);
+    defer{ CloseHandle(file); };
+    
+    StringBuilder::Block *block = &sb.head;
+    while (block) {
+        WriteFile(file, block->data, block->written, nullptr, nullptr);
+        block = block->next;
+    }
 }
 
 void destroy_string_builder(StringBuilder *sb)
@@ -1049,10 +1089,16 @@ struct Post {
     String path;
     String title;
     String created;
+    DynamicArray<String> tags;
     String url;
     bool draft;
     String brief;
     String content;
+};
+
+struct Tag {
+    String str;
+    DynamicArray<Post> posts;
 };
 
 template<typename T>
@@ -1156,6 +1202,45 @@ bool parse_string(Lexer *lexer, String *str_out, Token *t_out)
     return false;
 }
 
+bool parse_string_list(Lexer *lexer, DynamicArray<String> *strs_out, Token *t_out)
+{
+    Token t = peek_next_token(lexer);
+    while (t.type != TOKEN_EOF) {
+        if (t.type == '"') {
+            t = next_token(lexer);
+
+            String str;
+            str.bytes = t.str.bytes+1;
+            if (!eat_until(lexer, '"', &t)) return false;
+            str.length = t.str.bytes - str.bytes;
+            
+            array_add(strs_out, str);
+            *t_out = t;
+        } else if (t.type == ',') { 
+            t = next_token(lexer);
+        } else if (t.type == ';') {
+            return true;
+        } else {
+            t = next_token(lexer);
+            
+            String str;
+            str.bytes = t.str.bytes;
+            while (t.type != TOKEN_EOF) {
+                t = peek_next_token(lexer);
+                if (t.type == ';' || t.type == ',') break;
+                t = next_token(lexer);
+            }
+            str.length = t.str.bytes - str.bytes;
+            array_add(strs_out, str);
+            *t_out = t;
+        }
+        
+        t = peek_next_token(lexer);
+    }
+    
+    return false;
+}
+
 bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
 {
     String str;
@@ -1167,10 +1252,49 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
             *bool_out = false;
             return true;
         }
-        PARSE_ERROR(lexer, "unexpected identifier parsing bool: %.*s", STRFMT(str));
+        PARSE_ERROR(lexer, "unexpected identifier parsing bool: '%.*s'", STRFMT(str));
         return false;
     }
     return false;
+}
+
+void append_post(StringBuilder *sb, Template *tmpl, Post post)
+{
+    for (Section s : tmpl->sections) {
+        append_string(sb, String{ tmpl->contents.bytes+s.offset, s.length });
+        if (s.name == "post.created") {
+            append_string(sb, post.created);
+        } else if (s.name == "post.title") {
+            append_string(sb, post.title);
+        } else if (s.name == "post.url") {
+            append_string(sb, post.url);
+        } else if (s.name == "post.brief") {
+            append_string(sb, post.brief);
+        } else if (s.name == "post.content") {
+            append_string(sb, post.content);
+        } else if (s.name == "post.tags") {
+            if (post.tags.count > 0) {
+                append_string(sb, "<i class=\"fa fa-tag\"></i>");
+                
+                for (i32 i = 0; i < post.tags.count-1; i++) {
+                    append_stringf(
+                        sb, 
+                        "<a href=\"/posts/tag/%.*s.html\">%.*s</a>, ", 
+                        STRFMT(post.tags[i]), 
+                        STRFMT(post.tags[i]));
+                }
+                
+                append_stringf(
+                    sb, 
+                    "<a href=\"/posts/tag/%.*s.html\">%.*s</a>", 
+                    STRFMT(post.tags[post.tags.count-1]), 
+                    STRFMT(post.tags[post.tags.count-1]));
+
+            }
+        } else if(s.name.length > 0) {
+            LOG_ERROR("unhandled section '%.*s'", STRFMT(s.name));
+        }
+    }
 }
 
 void generate_src_dir(String output, String src_dir, bool build_drafts)
@@ -1178,10 +1302,11 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
     DynamicArray<Template> templates{};
     DynamicArray<Post> posts{};
     DynamicArray<Page> pages{};
+    DynamicArray<Tag> tags{};
     
     String posts_src_path = join_path(src_dir, "_posts");
     String posts_dst_path = join_path(output, "posts");
-
+    
     DynamicArray<String> page_files = list_files(src_dir);
     DynamicArray<String> post_files = list_files(posts_src_path);
     DynamicArray<String> template_files = list_files(join_path(src_dir, "_templates"));
@@ -1248,6 +1373,9 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                             } else if (is_identifier(t2, "draft")) {
                                 if (!parse_bool(&fsg_lexer, &post.draft, &t2)) goto next_post_file;
                                 if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_post_file;
+                            } else if (is_identifier(t2, "tags")) {
+                                if (!parse_string_list(&fsg_lexer, &post.tags, &t2)) goto next_post_file;
+                                if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_post_file;
                             } else {
                                 PARSE_ERROR(
                                     &fsg_lexer, 
@@ -1297,11 +1425,24 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
         
         post.content = to_string(&content);
         if (post.brief.length == 0) post.brief = post.content;
-        post.brief = post.content;
         
         post.path = join_path(posts_dst_path, filename);
         post.url = join_url("/posts", filename);
         array_add(&posts, post);
+        
+        for (i32 i = 0; i < post.tags.count; i++) {
+            for (Tag &t : tags) {
+                if (t.str == post.tags[i]) {
+                    array_add(&t.posts, post);
+                    goto next_post_file;
+                }
+            }
+            
+            Tag t{};
+            t.str = post.tags[i];
+            array_add(&t.posts, post);
+            array_add(&tags, t);
+        }
         
 next_post_file:;
     }
@@ -1494,6 +1635,42 @@ next_tmpl_file:;
 next_page_file:;
     }
     
+    
+    Template *brief_tmpl = find_template(templates, "post_brief_inline");
+    Template *brief_block_tmpl = find_template(templates, "post_brief_block");
+    Template *full_tmpl = find_template(templates, "post_full_block");
+    
+    Template *tag_tmpl = find_template(templates, "posts_tag");
+    
+    if (tag_tmpl) {
+        for (Tag tag : tags) {
+            StringBuilder sb{};
+            defer{ destroy_string_builder(&sb); };
+
+            for (Section s : tag_tmpl->sections) {
+
+                if (s.name == "posts.brief" || s.name == "posts.full") {
+                    Template *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
+
+                    for (Post post : tag.posts) {
+                        if (!build_drafts && post.draft) continue; 
+                        append_post(&sb, post_tmpl, post);
+                    }
+                } else if (s.name == "tag.str") {
+                    append_string(&sb, tag.str);
+                } else if (s.name.length > 0) {
+                    LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tag_tmpl->name));
+                }
+            }
+
+            String path = join_path(output, stringf("\\posts\\tag\\%.*s.html", STRFMT(tag.str)));
+            defer{ destroy_string(path); };
+
+            write_file(path, sb);
+        }
+    }
+
+    
     for (Page page : pages) {
         StringBuilder sb{};
         defer{ destroy_string_builder(&sb); };
@@ -1505,32 +1682,11 @@ next_page_file:;
                 for (Section s2 : page.sections) {
                     append_string(&sb, String{ page.contents.bytes+s2.offset, s2.length });
                     if (s2.name == "posts.brief" || s2.name == "posts.full") {
-                        String tmpl_name = s2.name == "posts.brief" ? String{ "post_brief_inline" } : String{ "post_full_block" };
-                        Template *brief_tmpl = find_template(templates, tmpl_name);
+                        Template *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
                         
-                        if (!brief_tmpl) {
-                            LOG_ERROR("invalid template: post_brief_inline");
-                            continue;
-                        }
                         for (Post post : posts) {
                             if (!build_drafts && post.draft) continue; 
-                            
-                            for (Section s3 : brief_tmpl->sections) {
-                                append_string(&sb, String{ brief_tmpl->contents.bytes+s3.offset, s3.length });
-                                if (s3.name == "post.created") {
-                                    append_string(&sb, post.created);
-                                } else if (s3.name == "post.title") {
-                                    append_string(&sb, post.title);
-                                } else if (s3.name == "post.url") {
-                                    append_string(&sb, post.url);
-                                } else if (s3.name == "post.brief") {
-                                    append_string(&sb, post.brief);
-                                } else if (s3.name == "post.content") {
-                                    append_string(&sb, post.content);
-                                } else if(s3.name.length > 0) {
-                                    LOG_ERROR("unhandled section '%.*s'", STRFMT(s3.name));
-                                }
-                            }
+                            append_post(&sb, post_tmpl, post);
                         }
                     } else if (s2.name.length > 0) {
                         LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.name), STRFMT(page.name));
@@ -1545,39 +1701,19 @@ next_page_file:;
             }
         }
         
-        String out_contents = to_string(&sb);
-        defer{ destroy_string(out_contents); };
-        
-        write_file(page.path, out_contents);
+        write_file(page.path, sb);
     }
     
     Template *post_tmpl = find_template(templates, "post");
     if (post_tmpl) {
     	for (Post post : posts) {
             if (!build_drafts && post.draft) continue; 
-
-            String out_file = post.path;
             
             StringBuilder sb{};
             defer{ destroy_string_builder(&sb); };
+            append_post(&sb, post_tmpl, post);
             
-            for (Section s : post_tmpl->sections) {
-                append_string(&sb, String{ post_tmpl->contents.bytes+s.offset, s.length });
-                if (s.name.length > 0) {
-                    if (s.name == "post.content") {
-                        append_string(&sb, post.content);
-                    } else if (s.name == "post.created") {
-                        append_string(&sb, post.created);
-                    } else if (s.name == "post.title") {
-                        append_string(&sb, post.title);
-                    }
-                }
-            }
-            
-            String out_contents = to_string(&sb);
-            defer{ destroy_string(out_contents); };
-            
-            write_file(out_file, out_contents);
+            write_file(post.path, sb);
         }
     }
 }
