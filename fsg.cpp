@@ -1774,6 +1774,14 @@ int main(int argc, char **argv)
                     path = join_path(output, path);
                     defer{ free(path.bytes); };
                     
+                    String args{};
+                    for (i32 i = 0; i < path.length; i++) {
+                        if (path[i] == '?') {
+                            args = { &path[i+1], path.length-i-1 };
+                            path.length = i;
+                        }
+                    }
+                    
                     String content_type;
                     if (ends_with(path, ".html")) {
                         content_type = "text/html";
@@ -1782,7 +1790,7 @@ int main(int argc, char **argv)
                     } else if (ends_with(path, ".js")) {
                         content_type = "application/javascript";
                     } else if (ends_with(path, ".ttf") || 
-                               ends_with(path, ".woff2")) 
+                               ends_with(path, ".woff2"))
                     {
                         content_type = "application/octet-stream";
                     } else if (ends_with(path, ".png")) {
