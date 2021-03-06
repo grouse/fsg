@@ -1648,6 +1648,7 @@ next_page_file:;
             defer{ destroy_string_builder(&sb); };
 
             for (Section s : tag_tmpl->sections) {
+                append_string(&sb, String{ tag_tmpl->contents.bytes+s.offset, s.length });
 
                 if (s.name == "posts.brief" || s.name == "posts.full") {
                     Template *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
