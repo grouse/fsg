@@ -324,9 +324,9 @@
 
 /* text styling */
 body {
-	color: #777777;
+	color: #555555;
 	font-family: 'Ubuntu', sans-serif;
-	font-size: 11pt;
+	font-size: 13pt;
 	margin: 0;
 }
 
@@ -504,6 +504,10 @@ div.post-navigation .prev {
 
 div.post-navigation .next {
 	float: right;
+}
+
+div.tags {
+	float: left;
 }
 
 div.date {

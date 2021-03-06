@@ -11,7 +11,7 @@ if not exist %BUILD_DIR%\webroot %BUILD_DIR%\webroot
 
 PUSHD %BUILD_DIR%
 @ECHO on
-fsg.exe server -src=%ROOT%\site -output=%BUILD_DIR%\webroot
+fsg.exe server -src=%ROOT%\site -output=%BUILD_DIR%\webroot -drafts
 @ECHO off
 POPD
 

@@ -34,3 +34,5 @@ if 1%ms% lss 100 set ms=0%ms%
 
 set /a totalsecs = %hours%*3600 + %mins%*60 + %secs%
 echo genneration took %totalsecs%.%ms% seconds
+
+pause
