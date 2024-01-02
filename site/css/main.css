@@ -457,10 +457,10 @@ header {
 	color: var(--cl-base01);
 }
 
+.resume .university,
 .resume .position {
 	font-size: 1.0em;
-	margin-left: 15px;
-	margin-right: 15px;
+	display: block;
 }
 .resume .education .degree {
 	font-size: 1.1em;
@@ -469,14 +469,20 @@ header {
 
 .resume .time-period {
 	font-size: 0.8em;
+	display: block;
 	float: right;
-	margin-top: 6px;
 }
 
 .resume .project .short-description,
 .resume .location {
 	font-size: 0.9em;
 	font-style: italic;
+	display: block;
+	float: left;
+}
+
+.resume .description {
+    clear: both;
 }
 
 .resume .project .short-description {
@@ -688,13 +694,15 @@ div.highlight span.c1 {
 }
 
 /* responsive */
-@media (min-width: 580px)
+@media (min-width: 1000px)
 {
 	.resume .details-left {
+	    width: 50%;
 		float: left;
 	}
 
 	.resume .details-right {
+	    width: 50%;
 		float: right;
 	}
 }
@@ -744,7 +752,7 @@ div.highlight span.c1 {
 	}
 
 	.page-break {
-		page-break-after: always;
+		page-break-before: always;
 	}
 
 	/* layout */
@@ -754,10 +762,12 @@ div.highlight span.c1 {
 
 	/* resume */
 	.resume .details-left {
+	    width: 50%;
 		float: left !important;
 	}
 
 	.resume .details-right {
+	    width: 50%;
 		float: right !important;
 	}
 }
@@ -793,8 +803,3 @@ span.spoiler:hover {
 .header {
 	font-family: 'Ubuntu', sans-serif;
 }
-
-
-
-
-
