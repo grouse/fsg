@@ -1,146 +1,24 @@
+#include "core/core.h"
+#include "core/string.h"
+#include "core/file.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 
 #include <functional>
-
-extern "C" void* malloc(size_t size);
-
-#define MAX(a, b) (a) > (b) ? (a) : (b)
-#define MIN(a, b) (a) > (b) ? (b) : (a)
-
-#define swap(a, b) { auto tmp = a; a = b; b = tmp; }
-
-using u8 = unsigned char;
-using i32 = int;
-using u32 = unsigned int;
-using i64 = signed long long;
-
-template <typename F>
-struct Defer {
-    Defer(F f) : f(f) {}
-    ~Defer() { f(); }
-    F f;
-};
-
-template <typename F>
-Defer<F> defer_create( F f ) { return Defer<F>( f ); }
-
-#define defer__(line) defer_ ## line
-#define defer_(line) defer__( line )
-
-struct DeferDummy {};
-template<typename F> 
-Defer<F> operator+(DeferDummy, F&& f) { return defer_create<F>(std::forward<F>(f)); }
-
-#define defer auto defer_( __LINE__ ) = DeferDummy( ) + [&]( )
-
-template<typename T>
-struct Array {
-    T *data;
-    i32 count;
-
-    T& operator[](i32 i) { return data[i]; }
-    T* begin() { return &data[0]; }
-    T* end() { return &data[count]; }
-};
-
-template<typename T>
-struct DynamicArray : public Array<T> {
-    i32 capacity;
-};
-
-template<typename T>
-void array_add(DynamicArray<T> *arr, T& e)
-{
-    if (arr->count+1 > arr->capacity) {
-        i32 new_capacity = arr->capacity == 0 ? 1 : arr->capacity*2;
-        arr->capacity = new_capacity;
-        arr->data = (T*)realloc(arr->data, new_capacity*sizeof e);
-    }
-    
-    arr->data[arr->count++] = e;
-}
-
-struct String {
-    char *bytes = nullptr;
-    i32 length = 0;
-    
-    String() = default;
-    
-    template<i32 N>
-    String(const char(&str)[N])
-    {
-        length = N - 1;
-        bytes = (char*)str;
-    }
-    
-    String(const char *str, i32 length)
-    {
-        this->length = length;
-        bytes = (char*)str;
-    }
-    
-    char& operator[](i32 i)
-    {
-        return bytes[i];
-    }
-    
-    bool operator==(String rhs)
-    {
-        return length == rhs.length && (bytes == rhs.bytes || memcmp(bytes, rhs.bytes, length) == 0);
-    }
-    
-    bool operator!=(String rhs)
-    {
-        return length != rhs.length || (bytes != rhs.bytes && memcmp(bytes, rhs.bytes, length) != 0);
-    }
-    
-    bool operator>(String rhs)
-    {
-        return strncmp(bytes, rhs.bytes, MIN(length, rhs.length)) > 0;
-    }
-    
-    bool operator<(String rhs)
-    {
-        return strncmp(bytes, rhs.bytes, MIN(length, rhs.length)) < 0;
-    }
-};
 
 struct TagProperty {
     String key;
     String value;
 };
 
-void destroy_string(String str)
-{
-    free(str.bytes);
-}
 
-#define STRFMT(str) (str).length, (str).bytes
-void fsg_log(const char *fmt, ...)
-{
-    char buffer[2048];
-    va_list args;
-    va_start(args, fmt);
-    int length = vsnprintf(buffer, sizeof buffer-2, fmt, args);
-    va_end(args);
+#define PARSE_ERRORF(lexer, msg, ...)\
+    LOG_ERROR("parse error: %.*s: " msg, STRFMT((lexer)->debug_name), __VA_ARGS__)
 
-    if (length < (i32)sizeof buffer-2) {
-        buffer[length] = '\n';
-        buffer[length+1] = '\0';
-        OutputDebugStringA(buffer);
-        printf("%s", buffer);
-    }
-}
+#define PARSE_ERROR(lexer, msg)\
+    LOG_ERROR("parse error: %.*s: " msg, STRFMT((lexer)->debug_name))
 
-
-char* sz_string(String str)
-{
-    char *sz_str = (char*)malloc(str.length+1);
-    memcpy(sz_str, str.bytes, str.length);
-    sz_str[str.length] = '\0';
-    return sz_str;
-}
 
 enum LexerFlags : u32 {
     LEXER_FLAG_NONE = 0,
@@ -148,7 +26,7 @@ enum LexerFlags : u32 {
     LEXER_FLAG_EAT_NEWLINE = 1 << 0,
     LEXER_FLAG_EAT_WHITESPACE = 1 << 1,
     LEXER_FLAG_EAT_COMMENT = 1 << 2,
-    
+
     // TODO(jesper): this is a super dirty hack that probably requires some pretty
     // long winded rewrites of the whole way I deal with templates and sections etc to
     // generate the page
@@ -160,30 +38,24 @@ enum LexerFlags : u32 {
 struct Lexer {
     char *at;
     char *end;
-    
+
     String debug_name;
     LexerFlags flags = LEXER_FLAGS_DEFAULT;
 };
 
-#define LOG_ERROR(...) fsg_log(__VA_ARGS__)
-#define LOG_INFO(...) fsg_log(__VA_ARGS__)
-#define PARSE_ERROR(lexer, msg, ...)\
-    LOG_ERROR("parse error: %.*s: " msg, STRFMT((lexer)->debug_name), __VA_ARGS__)
-
-
 enum FsgTokenType : u8 {
     TOKEN_START = 127,
-    
+
     TOKEN_ANCHOR,
     TOKEN_CODE_BLOCK,
     TOKEN_CODE_INLINE,
 
     TOKEN_IDENTIFIER,
     TOKEN_COMMENT,
-    
+
     TOKEN_WHITESPACE,
     TOKEN_NEWLINE,
-    
+
     TOKEN_EOF,
 };
 const char* token_type_str(FsgTokenType type)
@@ -202,27 +74,6 @@ struct Token {
     FsgTokenType type;
     String str;
 };
-
-
-bool is_alpha(char c)
-{
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
-
-bool is_numeric(char c)
-{
-    return c >= '0' && c <= '9';
-}
-
-bool starts_with(String lhs, String rhs)
-{
-    return lhs.length >= rhs.length && memcmp(lhs.bytes, rhs.bytes, rhs.length) == 0;
-}
-
-bool ends_with(String lhs, String rhs)
-{
-    return lhs.length >= rhs.length && memcmp(lhs.bytes+lhs.length-rhs.length, rhs.bytes, rhs.length) == 0;
-}
 
 bool is_comment_start(Lexer *lexer)
 {
@@ -244,40 +95,39 @@ bool starts_with(Lexer *lexer, String str)
     return starts_with(String{ lexer->at, bytes_remain(lexer) }, str);
 }
 
-
 Token next_token(Lexer *lexer, LexerFlags flags)
 {
     while (lexer->at < lexer->end) {
         if (lexer->at[0] == ' ' || lexer->at[0] == '\t') {
             Token result;
             result.type = TOKEN_WHITESPACE;
-            result.str.bytes = lexer->at++;
-            
+            result.str.data = lexer->at++;
+
             while (lexer->at < lexer->end &&
                    (lexer->at[0] == ' ' || lexer->at[0] == '\t'))
             {
                 lexer->at++;
             }
-            
-            result.str.length = (i32)(lexer->at - result.str.bytes);
+
+            result.str.length = (i32)(lexer->at - result.str.data);
             if (!(flags & LEXER_FLAG_EAT_WHITESPACE)) return result;
         } else if (lexer->at[0] == '\n' || lexer->at[0] == '\r') {
             Token result;
             result.type = TOKEN_NEWLINE;
-            result.str.bytes = lexer->at;
-            
+            result.str.data = lexer->at;
+
             if (lexer->at[0] == '\r') lexer->at++;
             if (lexer->at[0] == '\n') lexer->at++;
-            
-            result.str.length = (i32)(lexer->at - result.str.bytes);
+
+            result.str.length = (i32)(lexer->at - result.str.data);
             if (!(flags & LEXER_FLAG_EAT_NEWLINE)) return result;
         } else if (is_comment_start(lexer)) {
             lexer->at += 4;
-            
+
             Token result;
             result.type = TOKEN_COMMENT;
-            result.str.bytes = lexer->at;
-            
+            result.str.data = lexer->at;
+
             i32 comment_level = 1;
             while (lexer->at < lexer->end) {
                 if (is_comment_end(lexer)) {
@@ -286,51 +136,51 @@ Token next_token(Lexer *lexer, LexerFlags flags)
                 } else if (is_comment_start(lexer)) {
                     comment_level++;
                 }
-                
+
                 lexer->at++;
             }
-            
-            result.str.length = (i32)(lexer->at - result.str.bytes);
-            result.str.length = (i32)(lexer->at - result.str.bytes - 3);
+
+            result.str.length = (i32)(lexer->at - result.str.data);
+            result.str.length = (i32)(lexer->at - result.str.data - 3);
             if (!(flags & LEXER_FLAG_EAT_COMMENT)) return result;
         } else if (starts_with(lexer, "```")) {
             Token result;
             result.type = TOKEN_CODE_BLOCK;
-            
+
             lexer->at += 3;
-            while (lexer->at < lexer->end && 
-                   (*lexer->at == ' ' || *lexer->at == '\n' || *lexer->at == '\r')) 
+            while (lexer->at < lexer->end &&
+                   (*lexer->at == ' ' || *lexer->at == '\n' || *lexer->at == '\r'))
             {
                 lexer->at++;
             }
-            
-            result.str.bytes = lexer->at++;
+
+            result.str.data = lexer->at++;
             while (lexer->at < lexer->end && !starts_with(lexer, "```")) {
                 lexer->at++;
             }
-            result.str.length = (i32)(lexer->at - result.str.bytes);
-            
+            result.str.length = (i32)(lexer->at - result.str.data);
+
             if (starts_with(lexer, "```")) lexer->at += 3;
             return result;
         } else if (starts_with(lexer, "`")) {
             Token result;
             result.type = TOKEN_CODE_INLINE;
-            
+
             lexer->at += 1;
-            result.str.bytes = lexer->at++;
+            result.str.data = lexer->at++;
             while (lexer->at < lexer->end && *lexer->at != '`') {
                 lexer->at++;
             }
-            result.str.length = (i32)(lexer->at - result.str.bytes);
+            result.str.length = (i32)(lexer->at - result.str.data);
             if (*lexer->at == '`') lexer->at += 1;
             return result;
-        } else if (lexer->flags & LEXER_FLAG_ENABLE_ANCHOR && 
-                   starts_with(lexer, "<a")) 
+        } else if (lexer->flags & LEXER_FLAG_ENABLE_ANCHOR &&
+                   starts_with(lexer, "<a"))
         {
             Token result;
             result.type = TOKEN_ANCHOR;
-            result.str.bytes = lexer->at++;
-            
+            result.str.data = lexer->at++;
+
             while (lexer->at < lexer->end) {
                 if (starts_with(lexer, "</a>")) {
                     lexer->at += 4;
@@ -338,33 +188,33 @@ Token next_token(Lexer *lexer, LexerFlags flags)
                 }
                 lexer->at++;
             }
-            
-            result.str.length = (i32)(lexer->at - result.str.bytes);
+
+            result.str.length = (i32)(lexer->at - result.str.data);
             return result;
-        } else if (is_alpha(lexer->at[0]) || is_numeric(lexer->at[0]) || (u8)lexer->at[0] >= 128) {
+        } else if (is_alpha(lexer->at[0]) || is_number(lexer->at[0]) || (u8)lexer->at[0] >= 128) {
             Token result;
             result.type = TOKEN_IDENTIFIER;
-            result.str.bytes = lexer->at++;
-            
+            result.str.data = lexer->at++;
+
             while (lexer->at < lexer->end) {
-                if (!is_alpha(lexer->at[0]) && !is_numeric(lexer->at[0]) && (u8)lexer->at[0] < 128) {
+                if (!is_alpha(lexer->at[0]) && !is_number(lexer->at[0]) && (u8)lexer->at[0] < 128) {
                     break;
                 }
-                
+
                 lexer->at++;
             }
-            
-            result.str.length = (i32)(lexer->at - result.str.bytes);
+
+            result.str.length = (i32)(lexer->at - result.str.data);
             return result;
         } else {
             Token result;
             result.type = (FsgTokenType)lexer->at[0];
-            result.str.bytes = lexer->at++;
+            result.str.data = lexer->at++;
             result.str.length = 1;
             return result;
         }
     }
-    
+
     Token result = {};
     result.type = TOKEN_EOF;
     return result;
@@ -386,7 +236,7 @@ bool require_next_token(Lexer *lexer, FsgTokenType type, Token *out)
 {
     *out = next_token(lexer, lexer->flags);
     if (out->type != type) {
-        PARSE_ERROR(lexer, "unexpected token. expected '%s', got '%.*s'", token_type_str(type), STRFMT(out->str));
+        PARSE_ERRORF(lexer, "unexpected token. expected '%s', got '%.*s'", token_type_str(type), STRFMT(out->str));
         return false;
     }
     return true;
@@ -396,10 +246,10 @@ bool require_next_token(Lexer *lexer, FsgTokenType type, LexerFlags flags, Token
 {
     *out = next_token(lexer, flags);
     if (out->type != type) {
-        PARSE_ERROR(lexer, "unexpected token. expected '%s', got '%.*s'", token_type_str(type), STRFMT(out->str));
+        PARSE_ERRORF(lexer, "unexpected token. expected '%s', got '%.*s'", token_type_str(type), STRFMT(out->str));
         return false;
     }
-    
+
     return true;
 }
 
@@ -407,7 +257,7 @@ bool require_next_token(Lexer *lexer, char type, Token *out)
 {
     *out = next_token(lexer, lexer->flags);
     if (out->type != type) {
-        PARSE_ERROR(lexer, "unexpected token. expected '%c', got '%.*s'", type, STRFMT(out->str));
+        PARSE_ERRORF(lexer, "unexpected token. expected '%c', got '%.*s'", type, STRFMT(out->str));
         return false;
     }
     return true;
@@ -421,9 +271,9 @@ bool eat_until(Lexer *lexer, FsgTokenType type, Token *out)
         t = next_token(lexer, LEXER_FLAG_NONE);
     } while (t.type != type && t.type != TOKEN_EOF);
     *out = t;
-    
+
     if (t.type != type) {
-        PARSE_ERROR(lexer, "unexpected EOF. expected '%s'", token_type_str(type));
+        PARSE_ERRORF(lexer, "unexpected EOF. expected '%s'", token_type_str(type));
         return false;
     }
     return true;
@@ -438,7 +288,7 @@ bool eat_until(Lexer *lexer, char c, Token *out)
     *out = t;
 
     if (t.type != c) {
-        PARSE_ERROR(lexer, "unexpected EOF. expected '%c'", c);
+        PARSE_ERRORF(lexer, "unexpected EOF. expected '%c'", c);
         return false;
     }
     return true;
@@ -448,8 +298,8 @@ Array<TagProperty> parse_html_tag_properties(String tag)
 {
     DynamicArray<TagProperty> properties{};
 
-    char *at = tag.bytes;
-    char *end = tag.bytes + tag.length;
+    char *at = tag.data;
+    char *end = tag.data + tag.length;
 
     at++;
     while (at < end) {
@@ -462,26 +312,26 @@ Array<TagProperty> parse_html_tag_properties(String tag)
     at++;
     while (at < end) {
         TagProperty property{};
-        
+
         if (*at == '>') goto end;
         while (at < end && *at == ' ') at++;
 
         if (is_alpha(at[0])) {
-            property.key.bytes = at++;
+            property.key.data = at++;
             while (at < end) {
                 if (*at == '>' || *at == '=' || *at == ' ') break;
                 at++;
             }
-            property.key.length = (i32)(at - property.key.bytes);
+            property.key.length = (i32)(at - property.key.data);
 
             if (at < end && *at == '=') {
                 at += 2;
-                property.value.bytes = at++;
+                property.value.data = at++;
                 while (at < end) {
                     if (*at == '"') break;
                     at++;
                 }
-                property.value.length = (i32)(at - property.value.bytes);
+                property.value.length = (i32)(at - property.value.data);
                 at++;
             }
         }
@@ -489,7 +339,7 @@ Array<TagProperty> parse_html_tag_properties(String tag)
         if (property.key.length > 0) {
             array_add(&properties, property);
         }
-        
+
     }
 
 end:
@@ -498,102 +348,27 @@ end:
 
 String parse_html_tag_inner(String tag)
 {
-    char *at = tag.bytes;
-    char *end = tag.bytes + tag.length;
+    char *at = tag.data;
+    char *end = tag.data + tag.length;
 
     at++;
     while (at < end) {
         if (*at == '>') break;
         at++;
     }
-    
+
     at++;
 
     String inner{};
-    inner.bytes = at++;
-    
+    inner.data = at++;
+
     while (at < end) {
         if (*at == '<') break;
         at++;
     }
-    
-    inner.length = (i32)(at - inner.bytes);
+
+    inner.length = (i32)(at - inner.data);
     return inner;
-}
-void append_string(StringBuilder *sb, String str)
-{
-    i32 available = MIN((i32)sizeof sb->current->data - sb->current->written, str.length);
-    i32 rest = str.length - available;
-
-    memcpy(sb->current->data+sb->current->written, str.bytes, available);
-    sb->current->written += available;
-    
-    i32 written = available;
-    while(rest > 0) {
-        StringBuilder::Block *block = (StringBuilder::Block*)malloc(sizeof(StringBuilder::Block));
-        memset(block, 0, sizeof *block);
-        
-        sb->current->next = block;
-        sb->current = block;
-        
-        i32 to_write = MIN((i32)sizeof sb->current->data, rest);
-        memcpy(block->data, str.bytes+written, to_write);
-        block->written += to_write;
-        
-        rest -= to_write;
-        written += to_write;
-    }
-}
-
-void append_char(StringBuilder *sb, char c)
-{
-    i32 available = sizeof sb->current->data - sb->current->written;
-    
-    if (available < 1) {
-        StringBuilder::Block *block = (StringBuilder::Block*)malloc(sizeof(StringBuilder::Block));
-        memset(block, 0, sizeof *block);
-
-        sb->current->next = block;
-        sb->current = block;
-    }
-
-    *(sb->current->data+sb->current->written) = c;
-    sb->current->written += 1;
-}
-
-String stringf(const char *fmt, ...)
-{
-    String str{};
-    
-    va_list args;
-    va_start(args, fmt);
-    
-    i32 required = vsnprintf(nullptr, 0, fmt, args);
-    str.bytes = (char*)malloc(required+2);
-    str.length = required;
-    vsnprintf(str.bytes, required+1, fmt, args);
-    
-    return str;
-}
-
-void append_stringf(StringBuilder *builder, const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-
-    i32 available = sizeof builder->current->data - builder->current->written;
-    i32 length = vsnprintf(builder->current->data + builder->current->written, available-1, fmt, args);
-
-    if (length > available-1) {
-        char *buffer = (char*)malloc(length+1);
-        vsnprintf(buffer, length+1, fmt, args);
-
-        append_string(builder, String{ buffer, length });
-    } else {
-        builder->current->written += length;
-    }
-
-    va_end(args);
 }
 
 void append_escape_html(StringBuilder *sb, String str)
@@ -607,50 +382,6 @@ void append_escape_html(StringBuilder *sb, String str)
     }
 }
 
-String to_string(StringBuilder *sb)
-{
-    i32 size = 0;
-    StringBuilder::Block *block = &sb->head;
-    do {
-        size += block->written;
-        block = block->next;
-    } while (block);
-    
-    String str;
-    str.bytes = (char*)malloc(size);
-    
-    block = &sb->head;
-    do {
-        memcpy(str.bytes+str.length, block->data, block->written);
-        str.length += block->written;
-        block = block->next;
-    } while (block);
-    
-    return str;
-}
-
-String join_path(String lhs, String rhs)
-{
-    i32 required = lhs.length + rhs.length;
-    if (lhs[lhs.length-1] != '\\' && rhs[0] != '\\') {
-        required += 1;
-    }
-    
-    String result;
-    result.bytes = (char*)malloc(required);
-    
-    memcpy(result.bytes, lhs.bytes, lhs.length);
-    result.length = lhs.length;
-    
-    if (lhs[lhs.length-1] != '\\' && rhs[0] != '\\') {
-        result[result.length] = '\\';
-        result.length += 1;
-    }
-
-    memcpy(result.bytes+result.length, rhs.bytes, rhs.length);
-    result.length += rhs.length;
-    return result;
-}
 
 String join_url(String lhs, String rhs)
 {
@@ -660,9 +391,9 @@ String join_url(String lhs, String rhs)
     }
 
     String result;
-    result.bytes = (char*)malloc(required);
+    result.data = (char*)malloc(required);
 
-    memcpy(result.bytes, lhs.bytes, lhs.length);
+    memcpy(result.data, lhs.data, lhs.length);
     result.length = lhs.length;
 
     if (lhs[lhs.length-1] != '/' && rhs[0] != '/') {
@@ -670,268 +401,23 @@ String join_url(String lhs, String rhs)
         result[result.length-1] = '/';
     }
 
-    memcpy(result.bytes+result.length, rhs.bytes, rhs.length);
+    memcpy(result.data+result.length, rhs.data, rhs.length);
     result.length += rhs.length;
     return result;
 }
 
-
 void canonicalise_path(String path)
-{   
-    for (i32 i = 0; i < path.length; i++) {
-        path.bytes[i] = path.bytes[i] == '/' ? '\\' : path.bytes[i];
-    }
-}
-
-DynamicArray<String> list_files(String dir)
 {
-    DynamicArray<String> files{};
-
-    i32 length = dir.length;
-
-    char sz_path[2048];
-    memcpy(sz_path, dir.bytes, length);
-    canonicalise_path(String{ sz_path, length });
-    
-    bool eslash = dir[length-1] == '\\';
-    String root{ sz_path, eslash ? length : length+1 };
-
-	if (!eslash) sz_path[length++] = '\\';
-    sz_path[length++] = '*';
-    sz_path[length++] = '.';
-    sz_path[length++] = '*';
-    sz_path[length++] = '\0';
-    
-
-    WIN32_FIND_DATA fd;
-    HANDLE h = FindFirstFile(sz_path, &fd);
-    if (h == INVALID_HANDLE_VALUE) return files;
-    defer { FindClose(h); };
-    
-    do {
-        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) {
-            continue;
-        }
-
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        } else {
-            String path = join_path(root, String{ fd.cFileName, (i32)strlen(fd.cFileName) });
-            array_add(&files, path);
-
-        }
-    } while(FindNextFile(h, &fd));
-    
-    return files;
-}
-
-char* win32_system_error_message(DWORD error)
-{
-    static char buffer[2048];
-    DWORD result = FormatMessage(
-        FORMAT_MESSAGE_FROM_SYSTEM,
-        NULL,
-        error,
-        0,
-        buffer,
-        sizeof buffer,
-        NULL);
-    (void)result;
-    return buffer;
-}
-
-String read_entire_file(String path)
-{
-    String result{};
-    
-    char *sz_path = sz_string(path);
-    defer { free(sz_path); };
-    
-    HANDLE file = CreateFileA(
-        sz_path, 
-        GENERIC_READ, 
-        FILE_SHARE_READ, 
-        nullptr, 
-        OPEN_EXISTING, 
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr);
-    
-    if (file == INVALID_HANDLE_VALUE) {
-        DWORD code = GetLastError();
-        LOG_ERROR("invalid file handle: %s - %d:%s", sz_path, code, win32_system_error_message(code));
-        return {};
-    }
-    defer{ CloseHandle(file); };
-
-    LARGE_INTEGER file_size;
-    if (!GetFileSizeEx(file, &file_size)) {
-        LOG_ERROR("failed getting file size");
-        return {};
-    }
-
-    result.length = (i32)file_size.QuadPart;
-    result.bytes = (char*)malloc(result.length);
-
-    DWORD bytes_read;
-    if (!ReadFile(file, result.bytes, result.length, &bytes_read, nullptr) ||
-        bytes_read != (DWORD)result.length) 
-    {
-        LOG_ERROR("failed reading file");
-        return {};
-    }
-    
-    return result;
-}
-
-void remove_files(String in_dir)
-{
-    DynamicArray<String> folders{};
-    array_add(&folders, in_dir);
-    
-    for (i32 i = 0; i < folders.count; i++) {
-        String dir = folders[i];
-        i32 length = dir.length;
-
-        char sz_dir[2048];
-        memcpy(sz_dir, dir.bytes, length);
-        canonicalise_path(String{ sz_dir, length });
-
-        bool eslash = dir[length-1] == '\\';
-        String root{ sz_dir, eslash ? length : length+1 };
-
-        if (!eslash) sz_dir[length++] = '\\';
-        sz_dir[length++] = '*';
-        sz_dir[length++] = '.';
-        sz_dir[length++] = '*';
-        sz_dir[length++] = '\0';
-
-        WIN32_FIND_DATA fd;
-        HANDLE h = FindFirstFile(sz_dir, &fd);
-        if (h != INVALID_HANDLE_VALUE) {
-            defer { FindClose(h); };
-
-            do {
-                if (fd.cFileName[0] == '.') continue;
-
-                String path = join_path(root, String{ fd.cFileName, (i32)strlen(fd.cFileName) });
-                if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                    array_add(&folders, path);
-                } else {
-                    char *sz_file = sz_string(path);
-                    defer{
-                        free(sz_file);
-                        destroy_string(path);
-                    };
-
-                    if (DeleteFileA(sz_file) == 0) {
-                        LOG_ERROR("failed removing file: '%s', win32 error: '%s'", sz_file, win32_system_error_message(GetLastError())); 
-                    } else {
-                        LOG_INFO("deleted folder: %s", sz_file);
-                    }
-
-                }
-            } while(FindNextFile(h, &fd));
-        }
-    }
-    
-#if 0
-    for (i32 i = folders.count-1; i >= 1; i--) {
-        char *sz_dir = sz_string(folders[i]);
-        if (RemoveDirectoryA(sz_dir) == 0) {
-            LOG_ERROR("failed removing directory: '%s', win32 error: '%s'", sz_dir, win32_system_error_message(GetLastError())); 
-        } else {
-            LOG_INFO("deleted dir: %s", sz_dir);
-        }
-        free(sz_dir);
-    }
-#endif
-}
-
-HANDLE open_file(char *sz_path)
-{
-    HANDLE file = CreateFileA(
-        sz_path,
-        GENERIC_WRITE,
-        0,
-        nullptr,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr);
-
-    if (file == INVALID_HANDLE_VALUE) {
-        DWORD code = GetLastError();
-        if (code == 3) {
-            char *ptr = sz_path;
-            char *end = ptr + strlen(ptr);
-
-            while (ptr < end) {
-                if (*ptr == '\\') {
-                    *ptr = '\0';
-                    defer{ *ptr = '\\'; };
-
-                    if (CreateDirectoryA(sz_path, NULL) == 0) {
-                        DWORD create_dir_error = GetLastError();
-                        if (create_dir_error != ERROR_ALREADY_EXISTS) {
-                            LOG_ERROR("failed creating folder: %s, code: %d, msg: '%s'", 
-                                      sz_path, 
-                                      create_dir_error, 
-                                      win32_system_error_message(create_dir_error));
-                            return INVALID_HANDLE_VALUE;
-                        }
-                    }
-                }
-                ptr++;
-            }
-        } else {
-            LOG_ERROR("failed creating file: '%s', code: %d, msg: '%s'", sz_path, code, win32_system_error_message(code));
-            return INVALID_HANDLE_VALUE;
-        }
-    }
-    
-    return file;
-}
-
-void write_file(String path, String content)
-{
-    char *sz_path = sz_string(path);
-    defer { free(sz_path); };
-
-    HANDLE file = open_file(sz_path);
-    defer{ CloseHandle(file); };
-    
-    DWORD bytes_written;
-    WriteFile(file, content.bytes, content.length, &bytes_written, nullptr);
-}
-
-void write_file(String path, StringBuilder sb)
-{
-    char *sz_path = sz_string(path);
-    defer { free(sz_path); };
-
-    HANDLE file = open_file(sz_path);
-    defer{ CloseHandle(file); };
-    
-    StringBuilder::Block *block = &sb.head;
-    while (block) {
-        WriteFile(file, block->data, block->written, nullptr, nullptr);
-        block = block->next;
-    }
-}
-
-void destroy_string_builder(StringBuilder *sb)
-{
-    StringBuilder::Block *block = sb->head.next;
-    while (block) {
-        StringBuilder::Block *next = block->next;
-        free(block);
-        block = next;
-    }
+    // for (i32 i = 0; i < path.length; i++) {
+    //     path.data[i] = path.data[i] == '/' ? '\\' : path.data[i];
+    // }
 }
 
 bool is_identifier(Token t, String str)
 {
     return t.type == TOKEN_IDENTIFIER && t.str == str;
 }
-    
+
 struct Section {
     String name;
     i32 offset;
@@ -971,15 +457,6 @@ struct Tag {
     DynamicArray<Post> posts;
 };
 
-template<typename T>
-T* array_find(Array<T> arr, T e)
-{
-    for (i32 i = 0; i < arr.count; i++) {
-        if (arr.data[i] == e) return &arr.data[i];
-    }
-    return nullptr;
-}
-
 i32 find_template_index(Array<Template> templates, String name)
 {
     for (i32 i = 0; i < templates.count; i++) {
@@ -998,30 +475,21 @@ Template* find_template(Array<Template> templates, String name)
 
 }
 
-
-String copy_string(String rhs)
-{
-    String result;
-    result.bytes = (char*)malloc(rhs.length);
-    result.length = rhs.length;
-    memcpy(result.bytes, rhs.bytes, rhs.length);
-    return result;
-}
-
-
 void copy_files(String root, String folder, String dst)
 {
-    DynamicArray<String> files = list_files(join_path(root, folder));
+    SArena scratch = tl_scratch_arena();
+
+    DynamicArray<String> files = list_files(join_path(root, folder, scratch), scratch);
 
     for (String p : files) {
-        String contents = read_entire_file(p);
-        defer{ destroy_string(contents); };
+        SArena mem_file = tl_scratch_arena(scratch);
 
-        String filename{ p.bytes+root.length, p.length-root.length };
-        String out_file = join_path(dst, filename);
-        defer{ destroy_string(out_file); };
+        FileInfo contents = read_file(p, mem_file);
 
-        write_file(out_file, contents);
+        String filename{ p.data+root.length, p.length-root.length };
+        String out_file = join_path(dst, filename, mem_file);
+
+        write_file(out_file, contents.data, contents.size);
     }
 }
 
@@ -1032,12 +500,12 @@ bool parse_string(Lexer *lexer, String *str_out, Token *t_out)
     Token t = peek_next_token(lexer);
     if (t.type == '"') {
         t = next_token(lexer);
-        
+
         String str;
-        str.bytes = t.str.bytes+1;
+        str.data = t.str.data+1;
         if (!eat_until(lexer, '"', &t)) return false;
-        str.length = t.str.bytes - str.bytes;
-        
+        str.length = t.str.data - str.data;
+
         *t_out = t;
         *str_out = str;
         return true;
@@ -1046,22 +514,22 @@ bool parse_string(Lexer *lexer, String *str_out, Token *t_out)
         return true;
     } else {
         t = next_token(lexer);
-        
+
         String str;
-        str.bytes = t.str.bytes;
-        
+        str.data = t.str.data;
+
         while (t.type != TOKEN_EOF) {
             t = peek_next_token(lexer);
             if (t.type == ';') break;
             t = next_token(lexer);
         }
-        str.length = t.str.bytes - str.bytes;
-        
+        str.length = t.str.data - str.data;
+
         *t_out = t;
         *str_out = str;
         return true;
     }
-    
+
     return false;
 }
 
@@ -1073,34 +541,34 @@ bool parse_string_list(Lexer *lexer, DynamicArray<String> *strs_out, Token *t_ou
             t = next_token(lexer);
 
             String str;
-            str.bytes = t.str.bytes+1;
+            str.data = t.str.data+1;
             if (!eat_until(lexer, '"', &t)) return false;
-            str.length = t.str.bytes - str.bytes;
-            
+            str.length = t.str.data - str.data;
+
             array_add(strs_out, str);
             *t_out = t;
-        } else if (t.type == ',') { 
+        } else if (t.type == ',') {
             t = next_token(lexer);
         } else if (t.type == ';') {
             return true;
         } else {
             t = next_token(lexer);
-            
+
             String str;
-            str.bytes = t.str.bytes;
+            str.data = t.str.data;
             while (t.type != TOKEN_EOF) {
                 t = peek_next_token(lexer);
                 if (t.type == ';' || t.type == ',') break;
                 t = next_token(lexer);
             }
-            str.length = t.str.bytes - str.bytes;
+            str.length = t.str.data - str.data;
             array_add(strs_out, str);
             *t_out = t;
         }
-        
+
         t = peek_next_token(lexer);
     }
-    
+
     return false;
 }
 
@@ -1115,7 +583,7 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
             *bool_out = false;
             return true;
         }
-        PARSE_ERROR(lexer, "unexpected identifier parsing bool: '%.*s'", STRFMT(str));
+        PARSE_ERRORF(lexer, "unexpected identifier parsing bool: '%.*s'", STRFMT(str));
         return false;
     }
     return false;
@@ -1124,7 +592,7 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
 void append_post(StringBuilder *sb, Template *tmpl, Post post)
 {
     for (Section s : tmpl->sections) {
-        append_string(sb, String{ tmpl->contents.bytes+s.offset, s.length });
+        append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
         if (s.name == "post.created") {
             append_string(sb, post.created);
         } else if (s.name == "post.title") {
@@ -1138,19 +606,19 @@ void append_post(StringBuilder *sb, Template *tmpl, Post post)
         } else if (s.name == "post.tags") {
             if (post.tags.count > 0) {
                 append_string(sb, "<i class=\"fa fa-tag\"></i>");
-                
+
                 for (i32 i = 0; i < post.tags.count-1; i++) {
                     append_stringf(
-                        sb, 
-                        "<a href=\"/posts/tag/%.*s.html\">%.*s</a>, ", 
-                        STRFMT(post.tags[i]), 
+                        sb,
+                        "<a href=\"/posts/tag/%.*s.html\">%.*s</a>, ",
+                        STRFMT(post.tags[i]),
                         STRFMT(post.tags[i]));
                 }
-                
+
                 append_stringf(
-                    sb, 
-                    "<a href=\"/posts/tag/%.*s.html\">%.*s</a>", 
-                    STRFMT(post.tags[post.tags.count-1]), 
+                    sb,
+                    "<a href=\"/posts/tag/%.*s.html\">%.*s</a>",
+                    STRFMT(post.tags[post.tags.count-1]),
                     STRFMT(post.tags[post.tags.count-1]));
 
             }
@@ -1162,69 +630,68 @@ void append_post(StringBuilder *sb, Template *tmpl, Post post)
 
 void generate_src_dir(String output, String src_dir, bool build_drafts)
 {
+    SArena scratch = tl_scratch_arena();
+
     DynamicArray<Template> templates{};
     DynamicArray<Post> posts{};
     DynamicArray<Page> pages{};
     DynamicArray<Tag> tags{};
-    
-    String posts_src_path = join_path(src_dir, "_posts");
-    String posts_dst_path = join_path(output, "posts");
-    
-    DynamicArray<String> page_files = list_files(src_dir);
-    DynamicArray<String> post_files = list_files(posts_src_path);
-    DynamicArray<String> template_files = list_files(join_path(src_dir, "_templates"));
-    
+
+    String posts_src_path = join_path(src_dir, "_posts", mem_dynamic);
+    String posts_dst_path = join_path(output, "posts", mem_dynamic);
+
+    DynamicArray<String> page_files = list_files(src_dir, mem_dynamic);
+    DynamicArray<String> post_files = list_files(posts_src_path, mem_dynamic);
+    DynamicArray<String> template_files = list_files(join_path(src_dir, "_templates", mem_dynamic), mem_dynamic);
+
     remove_files(output);
-    
+
     copy_files(src_dir, "css", output);
     copy_files(src_dir, "img", output);
     copy_files(src_dir, "js", output);
     copy_files(src_dir, "fonts", output);
-    
+
     for (String p : post_files) {
-        Post post;
-        Lexer lexer;
-        Token t;
-        char *ptr;
+        String filename{ p.data+posts_src_path.length+1, p.length-posts_src_path.length-1};
+
+        FileInfo contents = read_file(p, mem_dynamic);
+        if (!contents.data) {
+            LOG_ERROR("failed reading %.*s", p.length, p.data);
+            continue;
+        }
+
         StringBuilder content{};
 
-        String filename{ p.bytes+posts_src_path.length+1, p.length-posts_src_path.length-1};
-
-        String contents = read_entire_file(p);
-        if (!contents.bytes) {
-            LOG_ERROR("failed reading %.*s", p.length, p.bytes);
-            goto next_post_file;
-        }
-        
-        post = Post{};
-        lexer = Lexer{ 
-            contents.bytes, 
-            contents.bytes+contents.length, 
-            p, 
+        Lexer lexer{
+            (char*)contents.data,
+            (char*)contents.data+contents.size,
+            p,
             (LexerFlags)(LEXER_FLAG_NONE | LEXER_FLAG_ENABLE_ANCHOR)
         };
-        ptr = lexer.at;
+        char *ptr = lexer.at;
 
-        t = next_token(&lexer);
+        Post post{};
+
+        Token t = next_token(&lexer);
         while (t.type != TOKEN_EOF) {
             if (t.type == TOKEN_COMMENT) {
-                Lexer fsg_lexer{ 
-                    t.str.bytes, 
-                    t.str.bytes+t.str.length, 
+                Lexer fsg_lexer{
+                    t.str.data,
+                    t.str.data+t.str.length,
                     p,
                     (LexerFlags)(LEXER_FLAG_EAT_NEWLINE | LEXER_FLAG_EAT_WHITESPACE)
                 };
-                
+
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_post_file;
-                    
+
                     t2 = next_token(&fsg_lexer);
                     if (is_identifier(t2, "brief")) {
                         if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_post_file;
                         if (!require_next_token(&fsg_lexer, TOKEN_EOF, &t2)) goto next_post_file;
-                        
-                        post.brief = to_string(&content);
+
+                        post.brief = create_string(&content, mem_dynamic);
                     } else {
                         while (t2.type != TOKEN_EOF) {
                             if (is_identifier(t2, "title")) {
@@ -1240,9 +707,9 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                                 if (!parse_string_list(&fsg_lexer, &post.tags, &t2)) goto next_post_file;
                                 if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_post_file;
                             } else {
-                                PARSE_ERROR(
-                                    &fsg_lexer, 
-                                    "unexpected token. expected one of 'title' or 'date', got '%.*s'", 
+                                PARSE_ERRORF(
+                                    &fsg_lexer,
+                                    "unexpected token. expected one of 'title' or 'date', got '%.*s'",
                                     STRFMT(t2.str));
                                 goto next_post_file;
                             }
@@ -1261,38 +728,38 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                 append_escape_html(&content, t.str);
                 append_string(&content, "</code>");
             } else if (t.type == TOKEN_ANCHOR) {
-                i32 length = (i32)(t.str.bytes - ptr);
+                i32 length = (i32)(t.str.data - ptr);
                 if (length > 0) append_string(&content, String{ ptr, length });
-                
+
                 Array<TagProperty> properties = parse_html_tag_properties(t.str);
                 String inner = parse_html_tag_inner(t.str);
-                    
+
                 bool has_href = false;
                 append_string(&content, "<a");
-                
+
                 for (TagProperty prop : properties) {
                     if (prop.key == "href") has_href = true;
                     append_stringf(&content, " %.*s=\"%.*s\"", STRFMT(prop.key), STRFMT(prop.value));
                 }
-                
+
                 if (!has_href) append_stringf(&content, " href=\"%.*s\"", STRFMT(inner));
                 append_stringf(&content, ">%.*s</a>", STRFMT(inner));
             } else {
                 i32 length = (i32)(lexer.at - ptr);
                 if (length > 0) append_string(&content, String{ ptr, length });
             }
-            
+
             ptr = lexer.at;
             t = next_token(&lexer);
         }
-        
-        post.content = to_string(&content);
+
+        post.content = create_string(&content, mem_dynamic);
         if (post.brief.length == 0) post.brief = post.content;
-        
-        post.path = join_path(posts_dst_path, filename);
+
+        post.path = join_path(posts_dst_path, filename, mem_dynamic);
         post.url = join_url("/posts", filename);
         array_add(&posts, post);
-        
+
         for (i32 i = 0; i < post.tags.count; i++) {
             for (Tag &t : tags) {
                 if (t.str == post.tags[i]) {
@@ -1300,71 +767,71 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                     goto next_post_file;
                 }
             }
-            
+
             Tag t{};
             t.str = post.tags[i];
             array_add(&t.posts, post);
             array_add(&tags, t);
         }
-        
+
 next_post_file:;
     }
-    
+
     for (i32 i = 0; i < posts.count; i++) {
         for (i32 j = i; j > 0 && posts[j-1].created < posts[j].created; j--) {
-            swap(posts[j], posts[j-1]);
+            SWAP(posts[j], posts[j-1]);
         }
     }
 
     for (String p : template_files) {
-        String contents = read_entire_file(p);
-        if (!contents.bytes) {
-            LOG_ERROR("failed reading %.*s", p.length, p.bytes);
+        FileInfo contents = read_file(p, mem_dynamic);
+        if (!contents.data) {
+            LOG_ERROR("failed reading %.*s", p.length, p.data);
             return;
         }
 
         Template tmpl{};
-        tmpl.contents = contents;
-        
+        tmpl.contents = String{ (char*)contents.data, contents.size };
+
         Section tail;
         i32 last_section_end = 0;
 
 
         String filename = p;
         while (filename.length > 0 && filename[filename.length-1] != '.') filename.length--;
-        filename.length = filename.bytes[filename.length-1] == '.' ? filename.length-1 : filename.length;
+        filename.length = filename.data[filename.length-1] == '.' ? filename.length-1 : filename.length;
 
-        filename.bytes = filename.bytes + filename.length-1;
-        while (filename.bytes > p.bytes && filename.bytes[0] != '\\') filename.bytes--;
-        filename.bytes = *filename.bytes == '\\' ? filename.bytes+1 : filename.bytes;
-        filename.length -= (i32)(filename.bytes-p.bytes);
+        filename.data = filename.data + filename.length-1;
+        while (filename.data > p.data && filename.data[0] != '\\') filename.data--;
+        filename.data = *filename.data == '\\' ? filename.data+1 : filename.data;
+        filename.length -= (i32)(filename.data-p.data);
 
         DynamicArray<Section> sections{};
 
         tmpl.name = filename;
 
-        Lexer lexer{ contents.bytes, contents.bytes+contents.length, p };
+        Lexer lexer{ (char*)contents.data, (char*)contents.data+contents.size, p };
 
         Token t = next_token(&lexer);
         while (t.type != TOKEN_EOF) {
             if (t.type == TOKEN_COMMENT) {
-                char *comment_start = t.str.bytes-4;
-                char *comment_end = t.str.bytes+t.str.length+3;
+                char *comment_start = t.str.data-4;
+                char *comment_end = t.str.data+t.str.length+3;
 
-                
-                Lexer fsg_lexer{ 
-                    t.str.bytes, 
-                    t.str.bytes+t.str.length, 
+
+                Lexer fsg_lexer{
+                    t.str.data,
+                    t.str.data+t.str.length,
                     p,
                     (LexerFlags)(LEXER_FLAG_EAT_WHITESPACE | LEXER_FLAG_EAT_NEWLINE)
                 };
-                
+
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
                     Section section{};
 
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_tmpl_file;
-                    
+
                     t2 = next_token(&fsg_lexer);
                     while (t2.type != TOKEN_EOF) {
 
@@ -1372,17 +839,17 @@ next_post_file:;
                             if (!parse_string(&fsg_lexer, &section.name, &t2)) goto next_tmpl_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_tmpl_file;
                         } else {
-                            PARSE_ERROR(&fsg_lexer, "unexpected token. expected one of 'section', got '%.*s'", STRFMT(t2.str));
+                            PARSE_ERRORF(&fsg_lexer, "unexpected token. expected one of 'section', got '%.*s'", STRFMT(t2.str));
                             goto next_tmpl_file;
-                        } 
-                        
+                        }
+
                         t2 = next_token(&fsg_lexer);
 
                     }
 
                     section.offset = last_section_end;
-                    section.length = (i32)(comment_start-contents.bytes-last_section_end);
-                    last_section_end = (i32)(comment_end - contents.bytes);
+                    section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
+                    last_section_end = (i32)(comment_end - (char*)contents.data);
                     array_add(&sections, section);
                 }
 
@@ -1390,8 +857,8 @@ next_post_file:;
 
             t = next_token(&lexer);
         }
-        
-        tail = Section{ "", last_section_end, (i32)(lexer.end - (contents.bytes + last_section_end)) };
+
+        tail = Section{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
         if (tail.length > 0) array_add(&sections, tail);
 
         tmpl.sections = sections;
@@ -1402,45 +869,45 @@ next_tmpl_file:;
 
     for (String p : page_files) {
         Page page{};
-        
-        String filename{ p.bytes+src_dir.length+1, p.length-src_dir.length-1};
-        String out_file = join_path(output, filename);
-        
+
+        String filename{ p.data+src_dir.length+1, p.length-src_dir.length-1};
+        String out_file = join_path(output, filename, mem_dynamic);
+
         page.name = filename;
         page.path = out_file;
 
-        String contents = read_entire_file(p);
-        if (!contents.bytes) {
-            LOG_ERROR("failed reading: %.*s", p.length, p.bytes);
+        FileInfo contents = read_file(p, mem_dynamic);
+        if (!contents.data) {
+            LOG_ERROR("failed reading: %.*s", p.length, p.data);
             continue;
         }
-        
-        page.contents = contents;
 
-        
+        page.contents = String{ (char*)contents.data, contents.size };
+
+
         DynamicArray<Section> sections{};
         Section tail{};
 
         i32 last_section_end = 0;
-        
-        Lexer lexer{ contents.bytes, contents.bytes+contents.length, p };
+
+        Lexer lexer{ (char*)contents.data, (char*)contents.data+contents.size, p };
         Token t = next_token(&lexer);
         while (t.type != TOKEN_EOF) {
             if (t.type == TOKEN_COMMENT) {
-                char *comment_start = t.str.bytes-4;
-                char *comment_end = t.str.bytes+t.str.length+3;
+                char *comment_start = t.str.data-4;
+                char *comment_end = t.str.data+t.str.length+3;
 
-                Lexer fsg_lexer{ 
-                    t.str.bytes, 
-                    t.str.bytes+t.str.length, 
-                    p, 
+                Lexer fsg_lexer{
+                    t.str.data,
+                    t.str.data+t.str.length,
+                    p,
                     (LexerFlags)(LEXER_FLAG_EAT_WHITESPACE | LEXER_FLAG_EAT_NEWLINE)
                 };
-                
+
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
                     Section section{};
-                    
+
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_page_file;
 
                     t2 = next_token(&fsg_lexer);
@@ -1449,11 +916,11 @@ next_tmpl_file:;
                             if (page.tmpl_index == -1) {
                                 if (!require_next_token(&fsg_lexer, TOKEN_IDENTIFIER, &t2)) goto next_page_file;
                                 page.tmpl_index = find_template_index(templates, t2.str);
-                                
+
                                 if (!require_next_token(&fsg_lexer, '.', &t2)) goto next_page_file;
                                 if (!require_next_token(&fsg_lexer, TOKEN_IDENTIFIER, &t2)) goto next_page_file;
                                 page.dst_section_name = t2.str;
-                                
+
                                 if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_page_file;
                             } else {
                                 PARSE_ERROR(&fsg_lexer, "duplicate template properties");
@@ -1469,55 +936,55 @@ next_tmpl_file:;
                             if (!parse_string(&fsg_lexer, &page.subtitle, &t2)) goto next_page_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_page_file;
                         } else {
-                            PARSE_ERROR(
-                                &fsg_lexer, 
-                                "unexpected identifier. expected one of 'template', 'section' - got '%.*s'", 
+                            PARSE_ERRORF(
+                                &fsg_lexer,
+                                "unexpected identifier. expected one of 'template', 'section' - got '%.*s'",
                                 STRFMT(t2.str));
                             goto next_page_file;
                         }
 
                         t2 = next_token(&fsg_lexer);
                     }
-                    
+
                     section.offset = last_section_end;
-                    section.length = (i32)(comment_start-contents.bytes-last_section_end);
-                    last_section_end = (i32)(comment_end-contents.bytes);
+                    section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
+                    last_section_end = (i32)(comment_end-(char*)contents.data);
                     array_add(&sections, section);
                 }
             }
-            
+
             t = next_token(&lexer);
         }
-        
-        tail = Section{ "", last_section_end, (i32)(lexer.end - (contents.bytes + last_section_end)) };
+
+        tail = Section{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
         if (tail.length > 0) array_add(&sections, tail);
-        
+
         page.sections = sections;
         array_add(&pages, page);
-        
+
 next_page_file:;
     }
-    
-    
+
+
     Template *brief_tmpl = find_template(templates, "post_brief_inline");
     Template *brief_block_tmpl = find_template(templates, "post_brief_block");
     Template *full_tmpl = find_template(templates, "post_full_block");
-    
+
     Template *tag_tmpl = find_template(templates, "posts_tag");
-    
+
     if (tag_tmpl) {
         for (Tag tag : tags) {
-            StringBuilder sb{};
-            defer{ destroy_string_builder(&sb); };
+            SArena scratch = tl_scratch_arena();
+            StringBuilder sb{ .alloc = scratch };
 
             for (Section s : tag_tmpl->sections) {
-                append_string(&sb, String{ tag_tmpl->contents.bytes+s.offset, s.length });
+                append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
 
                 if (s.name == "posts.brief" || s.name == "posts.full") {
                     Template *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
 
                     for (Post post : tag.posts) {
-                        if (!build_drafts && post.draft) continue; 
+                        if (!build_drafts && post.draft) continue;
                         append_post(&sb, post_tmpl, post);
                     }
                 } else if (s.name == "tag.str") {
@@ -1527,29 +994,29 @@ next_page_file:;
                 }
             }
 
-            String path = join_path(output, stringf("\\posts\\tag\\%.*s.html", STRFMT(tag.str)));
-            defer{ destroy_string(path); };
+            String path = join_path(output, stringf(mem_dynamic, "\\posts\\tag\\%.*s.html", STRFMT(tag.str)), mem_dynamic);
+            //defer{ destroy_string(path); };
 
-            write_file(path, sb);
+            write_file(path, &sb);
         }
     }
 
-    
+
     for (Page page : pages) {
-        StringBuilder sb{};
-        defer{ destroy_string_builder(&sb); };
-        
+        SArena scratch = tl_scratch_arena();
+        StringBuilder sb{ .alloc = scratch };
+
         Template *tmpl = &templates[page.tmpl_index];
         for (Section s : tmpl->sections) {
-            append_string(&sb, String{ tmpl->contents.bytes+s.offset, s.length });
+            append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
             if (s.name == page.dst_section_name) {
                 for (Section s2 : page.sections) {
-                    append_string(&sb, String{ page.contents.bytes+s2.offset, s2.length });
+                    append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
                     if (s2.name == "posts.brief" || s2.name == "posts.full") {
                         Template *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
-                        
+
                         for (Post post : posts) {
-                            if (!build_drafts && post.draft) continue; 
+                            if (!build_drafts && post.draft) continue;
                             append_post(&sb, post_tmpl, post);
                         }
                     } else if (s2.name.length > 0) {
@@ -1564,45 +1031,45 @@ next_page_file:;
                 LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tmpl->name));
             }
         }
-        
-        write_file(page.path, sb);
+
+        write_file(page.path, &sb);
     }
-    
+
     Template *post_tmpl = find_template(templates, "post");
     if (post_tmpl) {
     	for (Post post : posts) {
-            if (!build_drafts && post.draft) continue; 
-            
-            StringBuilder sb{};
-            defer{ destroy_string_builder(&sb); };
+            if (!build_drafts && post.draft) continue;
+
+            SArena scratch = tl_scratch_arena();
+            StringBuilder sb{ .alloc = scratch };
             append_post(&sb, post_tmpl, post);
-            
-            write_file(post.path, sb);
+
+            write_file(post.path, &sb);
         }
     }
 }
 
 
-int main(int argc, char **argv)
+int main(Array<String> args)
 {
-    if (argc < 3) {
+    if (args.count < 3) {
         LOG_INFO("usage: fsg generate|server -src=path -output=path [-drafts]");
         return 1;
     }
-    
+
     String output{};
     String src_dir{};
-    
+
     enum {
         RUN_MODE_NONE,
         RUN_MODE_GENERATE,
         RUN_MODE_SERVER
     } run_mode = RUN_MODE_NONE;
-    
+
     bool build_drafts = false;
-    
-    for (i32 i = 1; i < argc; i++) {
-        String a{ argv[i], (i32)strlen(argv[i]) };
+
+    for (i32 i = 0; i < args.count; i++) {
+        String a = args[i];
         if (starts_with(a, "generate")) {
             if (run_mode != 0) {
                 LOG_ERROR("can only supply one of generate|server");
@@ -1616,43 +1083,40 @@ int main(int argc, char **argv)
             }
             run_mode = RUN_MODE_SERVER;
         } else if (starts_with(a, "-output=")) {
-            output = { a.bytes+strlen("-output="), a.length-(i32)strlen("-output=") };
+            output = { a.data+strlen("-output="), a.length-(i32)strlen("-output=") };
         } else if (starts_with(a, "-src=")) {
-            src_dir = { a.bytes+strlen("-src="), a.length-(i32)strlen("-src=") };
+            src_dir = { a.data+strlen("-src="), a.length-(i32)strlen("-src=") };
         } else if (starts_with(a, "-drafts")) {
             build_drafts = true;
         } else {
             LOG_INFO("usage: fsg -output=path");
         }
     }
-    
+
     if (run_mode == 0) {
         LOG_ERROR("must supply one of generate|server");
         return 1;
     }
-    
+
     if (output.length == 0) {
         LOG_ERROR("empty output path");
         return 1;
     }
-    
+
     if (src_dir.length == 0) {
         LOG_ERROR("empty src_dir path");
         return 1;
     }
-    
+
     canonicalise_path(output);
     canonicalise_path(src_dir);
-    
-    generate_src_dir(output, src_dir, build_drafts);
 
+    generate_src_dir(output, src_dir, build_drafts);
 
     // if (run_mode == RUN_MODE_SERVER) {
     //     extern void run_server();
     //     run_server();
     // }
 
-    
     return 0;
 }
-    
