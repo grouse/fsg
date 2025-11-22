@@ -475,6 +475,15 @@ Template* find_template(Array<Template> templates, String name)
 
 }
 
+void sort_posts(Array<Post> posts)
+{
+    for (i32 i = 0; i < posts.count; i++) {
+        for (i32 j = i; j > 0 && posts[j-1].created < posts[j].created; j--) {
+            SWAP(posts[j], posts[j-1]);
+        }
+    }
+}
+
 void copy_files(String root, String folder, String dst)
 {
     SArena scratch = tl_scratch_arena();
@@ -777,11 +786,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
 next_post_file:;
     }
 
-    for (i32 i = 0; i < posts.count; i++) {
-        for (i32 j = i; j > 0 && posts[j-1].created < posts[j].created; j--) {
-            SWAP(posts[j], posts[j-1]);
-        }
-    }
+    sort_posts(posts);
 
     for (String p : template_files) {
         FileInfo contents = read_file(p, mem_dynamic);
@@ -982,6 +987,7 @@ next_page_file:;
                 if (s.name == "posts.brief" || s.name == "posts.full") {
                     Template *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
 
+                    sort_posts(tag.posts);
                     for (Post post : tag.posts) {
                         if (!build_drafts && post.draft) continue;
                         append_post(&sb, post_tmpl, post);
