@@ -1,0 +1,374 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/llvm-x64-linux-17.0.2-d8d4010e-b42c-4729-a786-f863412f5bda",
+  "name": "llvm:x64-linux@17.0.2 12be4172f02c0346898cf2183a68cd285ac4abfe1ea4543c6d4289a400ae4ce9",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-d6945642ee5c3076addd1a42c331bbf4cfc97457"
+    ],
+    "created": "2024-06-08T15:55:54Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-3"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-4"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-5"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-6"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-7"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-8"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-9"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-10"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-11"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-12"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-13"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-2",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-3",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-4",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-5",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-6",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-7",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-8",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-9",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-10",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-11",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-12",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-13",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "llvm",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "17.0.2",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5",
+      "homepage": "https://llvm.org",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "The LLVM Compiler Infrastructure.",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "llvm:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "12be4172f02c0346898cf2183a68cd285ac4abfe1ea4543c6d4289a400ae4ce9",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "llvm/llvm-project",
+      "downloadLocation": "git+https://github.com/llvm/llvm-project@llvmorg-17.0.2",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "362ddb94fdd22d05bd11c950f1711eafbd47424f6da0b1b061da012ef1b39dd8f7efeb91b53c036ea0708aa3845893fe39d1fb529ac3b928df738b88717d1aee"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0001-fix-install-package-dir.patch",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "f5931690cea1d16485b7dc611c15e228b52065eb33b20a74282d57ce60d39a59"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0002-fix-tools-install-dir.patch",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "b58c243e9c24f3a2351e6b83ab4731110fa958f30550e8886fb1787df6999286"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0003-fix-llvm-config.patch",
+      "SPDXID": "SPDXRef-file-2",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "7dce6ce8ff970b0e345b582fecd82dadcd366ca8e19aacbb65959ab1b42ad0c5"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0004-disable-libomp-aliases.patch",
+      "SPDXID": "SPDXRef-file-3",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "4db5a7e2c5b72aa77cb8c0752b92abd3f95106c9ecf08be7be818a155ab049ef"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0005-remove-numpy.patch",
+      "SPDXID": "SPDXRef-file-4",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "17010b3f614091929af093ecf48cea8d7194e74b3436e0f5e5d680a7ec6d9d48"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0006-create-destination-mlir-directory.patch",
+      "SPDXID": "SPDXRef-file-5",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ef0f728fe4a2df9dd6ca83bfe54ba67c780b482551e970d3f1c0e45815420e9b"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/0007-fix-compiler-rt-warnings.patch",
+      "SPDXID": "SPDXRef-file-6",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "957a56ea314ffd34a821bb753a35e90760290ebb8c141858ceb6958a705bf7cc"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/clang_usage",
+      "SPDXID": "SPDXRef-file-7",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "717ef0243788aa7280e4074e96fefbbe627d292e2fc0c5d6c0884fe47951441a"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/flang_usage",
+      "SPDXID": "SPDXRef-file-8",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "49ca6c4a5d29ee602ea0cffbc11e6c402139ab83981f2ceba6b8e9681dcd6ed7"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/lld_usage",
+      "SPDXID": "SPDXRef-file-9",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "06abbb163f0be3e8fed9c0a5e2abcda7c4241fed0ae447082ec7cb3d346e874f"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/llvm_usage",
+      "SPDXID": "SPDXRef-file-10",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "33ecae3f51213ca65bc3b57d7dfafbdabf8c0ad092712638720b62e855008541"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/mlir_usage",
+      "SPDXID": "SPDXRef-file-11",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9d7d0058c162a2924ebe307578e0af091d86cf659a3845e9c781f37062f881e7"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/portfile.cmake",
+      "SPDXID": "SPDXRef-file-12",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "a1ad576aaccb15a992480c59cef905c32a57c30df43c83d658116c8e6d96550e"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/grouse/.cache/vcpkg/registries/git-trees/7bbd8fe3bd9dd7f507ec0b0713c5de3109d312b5/vcpkg.json",
+      "SPDXID": "SPDXRef-file-13",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aca67f5a89414fda1b3604a0438bde7c02b97035e4df9679b1e66caeb4dc67fe"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}
