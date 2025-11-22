@@ -802,13 +802,13 @@ next_post_file:;
         filename.length = filename.data[filename.length-1] == '.' ? filename.length-1 : filename.length;
 
         filename.data = filename.data + filename.length-1;
-        while (filename.data > p.data && filename.data[0] != '\\') filename.data--;
-        filename.data = *filename.data == '\\' ? filename.data+1 : filename.data;
+        while (filename.data > p.data && filename.data[0] != '\\' && filename.data[0] != '/') filename.data--;
+        filename.data = *filename.data == '\\' || *filename.data == '/' ? filename.data+1 : filename.data;
         filename.length -= (i32)(filename.data-p.data);
 
         DynamicArray<Section> sections{};
 
-        tmpl.name = filename;
+        tmpl.name = duplicate_string(filename, mem_dynamic);
 
         Lexer lexer{ (char*)contents.data, (char*)contents.data+contents.size, p };
 
@@ -817,7 +817,6 @@ next_post_file:;
             if (t.type == TOKEN_COMMENT) {
                 char *comment_start = t.str.data-4;
                 char *comment_end = t.str.data+t.str.length+3;
-
 
                 Lexer fsg_lexer{
                     t.str.data,
@@ -994,7 +993,7 @@ next_page_file:;
                 }
             }
 
-            String path = join_path(output, stringf(mem_dynamic, "\\posts\\tag\\%.*s.html", STRFMT(tag.str)), mem_dynamic);
+            String path = join_path(output, stringf(mem_dynamic, "/posts/tag/%.*s.html", STRFMT(tag.str)), mem_dynamic);
             //defer{ destroy_string(path); };
 
             write_file(path, &sb);
