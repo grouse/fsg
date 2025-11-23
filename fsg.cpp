@@ -773,14 +773,20 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
             for (Tag &t : tags) {
                 if (t.str == post.tags[i]) {
                     array_add(&t.posts, post);
-                    goto next_post_file;
+                    LOG_INFO("adding post '%.*s' to existing tag: '%.*s'", STRFMT(post.title), STRFMT(t.str));
+                    goto next_tag;
                 }
             }
 
-            Tag t{};
-            t.str = post.tags[i];
-            array_add(&t.posts, post);
-            array_add(&tags, t);
+            {
+                Tag t{};
+                t.str = post.tags[i];
+                array_add(&t.posts, post);
+                array_add(&tags, t);
+                LOG_INFO("adding post '%.*s' to new tag: '%.*s'", STRFMT(post.title), STRFMT(t.str));
+            }
+
+next_tag:;
         }
 
 next_post_file:;
