@@ -488,7 +488,7 @@ void copy_files(String root, String folder, String dst)
 {
     SArena scratch = tl_scratch_arena();
 
-    DynamicArray<String> files = list_files(join_path(root, folder, scratch), scratch);
+    DynamicArray<String> files = list_files(join_path(root, folder, scratch), scratch, FILE_LIST_RECURSIVE);
 
     for (String p : files) {
         SArena mem_file = tl_scratch_arena(scratch);
@@ -659,6 +659,8 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
     copy_files(src_dir, "img", output);
     copy_files(src_dir, "js", output);
     copy_files(src_dir, "fonts", output);
+
+    copy_files(src_dir, "assets", output);
 
     for (String p : post_files) {
         String filename{ p.data+posts_src_path.length+1, p.length-posts_src_path.length-1};
