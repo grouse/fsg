@@ -418,7 +418,7 @@ bool is_identifier(Token t, String str)
     return t.type == TOKEN_IDENTIFIER && t.str == str;
 }
 
-struct Section {
+struct FsgPart {
     String name;
     i32 offset;
     i32 length;
@@ -427,7 +427,7 @@ struct Section {
 struct Template {
     String name;
     String contents;
-    Array<Section> sections;
+    Array<FsgPart> parts;
 };
 
 struct Page {
@@ -437,7 +437,7 @@ struct Page {
     String subtitle;
     String dst_section_name;
     String contents;
-    Array<Section> sections;
+    Array<FsgPart> parts;
     i32 tmpl_index = -1;
 };
 
@@ -600,7 +600,7 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
 
 void append_post(StringBuilder *sb, Template *tmpl, Post post)
 {
-    for (Section s : tmpl->sections) {
+    for (FsgPart s : tmpl->parts) {
         append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
         if (s.name == "post.created") {
             append_string(sb, post.created);
@@ -806,7 +806,7 @@ next_post_file:;
         Template tmpl{};
         tmpl.contents = String{ (char*)contents.data, contents.size };
 
-        Section tail;
+        FsgPart tail;
         i32 last_section_end = 0;
 
 
@@ -819,7 +819,7 @@ next_post_file:;
         filename.data = *filename.data == '\\' || *filename.data == '/' ? filename.data+1 : filename.data;
         filename.length -= (i32)(filename.data-p.data);
 
-        DynamicArray<Section> sections{};
+        DynamicArray<FsgPart> parts{};
 
         tmpl.name = duplicate_string(filename, mem_dynamic);
 
@@ -840,7 +840,7 @@ next_post_file:;
 
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
-                    Section section{};
+                    FsgPart section{};
 
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_tmpl_file;
 
@@ -862,7 +862,7 @@ next_post_file:;
                     section.offset = last_section_end;
                     section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
                     last_section_end = (i32)(comment_end - (char*)contents.data);
-                    array_add(&sections, section);
+                    array_add(&parts, section);
                 }
 
             }
@@ -870,10 +870,10 @@ next_post_file:;
             t = next_token(&lexer);
         }
 
-        tail = Section{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
-        if (tail.length > 0) array_add(&sections, tail);
+        tail = FsgPart{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
+        if (tail.length > 0) array_add(&parts, tail);
 
-        tmpl.sections = sections;
+        tmpl.parts = parts;
         array_add(&templates, tmpl);
 
 next_tmpl_file:;
@@ -897,8 +897,8 @@ next_tmpl_file:;
         page.contents = String{ (char*)contents.data, contents.size };
 
 
-        DynamicArray<Section> sections{};
-        Section tail{};
+        DynamicArray<FsgPart> parts{};
+        FsgPart tail{};
 
         i32 last_section_end = 0;
 
@@ -918,7 +918,7 @@ next_tmpl_file:;
 
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
-                    Section section{};
+                    FsgPart section{};
 
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_page_file;
 
@@ -961,22 +961,21 @@ next_tmpl_file:;
                     section.offset = last_section_end;
                     section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
                     last_section_end = (i32)(comment_end-(char*)contents.data);
-                    array_add(&sections, section);
+                    array_add(&parts, section);
                 }
             }
 
             t = next_token(&lexer);
         }
 
-        tail = Section{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
-        if (tail.length > 0) array_add(&sections, tail);
+        tail = FsgPart{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
+        if (tail.length > 0) array_add(&parts, tail);
 
-        page.sections = sections;
+        page.parts = parts;
         array_add(&pages, page);
 
 next_page_file:;
     }
-
 
     Template *brief_tmpl = find_template(templates, "post_brief_inline");
     Template *brief_block_tmpl = find_template(templates, "post_brief_block");
@@ -989,7 +988,7 @@ next_page_file:;
             SArena scratch = tl_scratch_arena();
             StringBuilder sb{ .alloc = scratch };
 
-            for (Section s : tag_tmpl->sections) {
+            for (FsgPart s : tag_tmpl->parts) {
                 append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
 
                 if (s.name == "posts.brief" || s.name == "posts.full") {
@@ -1020,10 +1019,10 @@ next_page_file:;
         StringBuilder sb{ .alloc = scratch };
 
         Template *tmpl = &templates[page.tmpl_index];
-        for (Section s : tmpl->sections) {
+        for (FsgPart s : tmpl->parts) {
             append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
             if (s.name == page.dst_section_name) {
-                for (Section s2 : page.sections) {
+                for (FsgPart s2 : page.parts) {
                     append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
                     if (s2.name == "posts.brief" || s2.name == "posts.full") {
                         Template *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
