@@ -418,8 +418,14 @@ bool is_identifier(Token t, String str)
     return t.type == TOKEN_IDENTIFIER && t.str == str;
 }
 
+enum FsgPartType {
+    FSG_PART_CHUNK = 0,
+    FSG_PART_VARIABLE,
+};
+
 struct FsgPart {
     String name;
+    FsgPartType type;
     i32 offset;
     i32 length;
 };
@@ -806,7 +812,7 @@ next_post_file:;
         Template tmpl{};
         tmpl.contents = String{ (char*)contents.data, contents.size };
 
-        FsgPart tail;
+        FsgPart tail{};
         i32 last_section_end = 0;
 
 
@@ -840,7 +846,7 @@ next_post_file:;
 
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
-                    FsgPart section{};
+                    FsgPart part{};
 
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_tmpl_file;
 
@@ -848,8 +854,9 @@ next_post_file:;
                     while (t2.type != TOKEN_EOF) {
 
                         if (is_identifier(t2, "section")) {
-                            if (!parse_string(&fsg_lexer, &section.name, &t2)) goto next_tmpl_file;
+                            if (!parse_string(&fsg_lexer, &part.name, &t2)) goto next_tmpl_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_tmpl_file;
+                            part.type = FSG_PART_VARIABLE;
                         } else {
                             PARSE_ERRORF(&fsg_lexer, "unexpected token. expected one of 'section', got '%.*s'", STRFMT(t2.str));
                             goto next_tmpl_file;
@@ -859,10 +866,10 @@ next_post_file:;
 
                     }
 
-                    section.offset = last_section_end;
-                    section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
+                    part.offset = last_section_end;
+                    part.length = (i32)(comment_start-(char*)contents.data-last_section_end);
                     last_section_end = (i32)(comment_end - (char*)contents.data);
-                    array_add(&parts, section);
+                    array_add(&parts, part);
                 }
 
             }
@@ -870,7 +877,12 @@ next_post_file:;
             t = next_token(&lexer);
         }
 
-        tail = FsgPart{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
+        tail = FsgPart{ 
+            .name = "", 
+            .type = FSG_PART_CHUNK,
+            .offset = last_section_end, 
+            .length = (i32)(lexer.end - ((char*)contents.data + last_section_end)) 
+        };
         if (tail.length > 0) array_add(&parts, tail);
 
         tmpl.parts = parts;
@@ -918,7 +930,7 @@ next_tmpl_file:;
 
                 Token t2 = next_token(&fsg_lexer);
                 if (is_identifier(t2, "fsg")) {
-                    FsgPart section{};
+                    FsgPart part{};
 
                     if (!require_next_token(&fsg_lexer, ':', &t2)) goto next_page_file;
 
@@ -939,8 +951,9 @@ next_tmpl_file:;
                                 goto next_page_file;
                             }
                         } else if (is_identifier(t2, "section")) {
-                            if (!parse_string(&fsg_lexer, &section.name, &t2)) goto next_page_file;
+                            if (!parse_string(&fsg_lexer, &part.name, &t2)) goto next_page_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_page_file;
+                            part.type = FSG_PART_VARIABLE;
                         } else if (is_identifier(t2, "title")) {
                             if (!parse_string(&fsg_lexer, &page.title, &t2)) goto next_page_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_page_file;
@@ -958,17 +971,21 @@ next_tmpl_file:;
                         t2 = next_token(&fsg_lexer);
                     }
 
-                    section.offset = last_section_end;
-                    section.length = (i32)(comment_start-(char*)contents.data-last_section_end);
+                    part.offset = last_section_end;
+                    part.length = (i32)(comment_start-(char*)contents.data-last_section_end);
                     last_section_end = (i32)(comment_end-(char*)contents.data);
-                    array_add(&parts, section);
+                    array_add(&parts, part);
                 }
             }
 
             t = next_token(&lexer);
         }
 
-        tail = FsgPart{ "", last_section_end, (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
+        tail = FsgPart{ 
+            .name = "", 
+            .type = FSG_PART_CHUNK,
+            .offset = last_section_end, 
+            .length = (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
         if (tail.length > 0) array_add(&parts, tail);
 
         page.parts = parts;
