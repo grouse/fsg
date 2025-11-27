@@ -430,13 +430,13 @@ struct FsgPart {
     i32 length;
 };
 
-struct Template {
+struct FsgTemplate {
     String name;
     String contents;
     Array<FsgPart> parts;
 };
 
-struct Page {
+struct FsgPage {
     String path;
     String name;
     String title;
@@ -447,7 +447,7 @@ struct Page {
     i32 tmpl_index = -1;
 };
 
-struct Post {
+struct FsgPost {
     String path;
     String title;
     String created;
@@ -458,12 +458,12 @@ struct Post {
     String content;
 };
 
-struct Tag {
+struct FsgTag {
     String str;
-    DynamicArray<Post> posts;
+    DynamicArray<FsgPost> posts;
 };
 
-i32 find_template_index(Array<Template> templates, String name)
+i32 find_template_index(Array<FsgTemplate> templates, String name)
 {
     for (i32 i = 0; i < templates.count; i++) {
         if (templates.data[i].name == name) return i;
@@ -472,7 +472,7 @@ i32 find_template_index(Array<Template> templates, String name)
 
 }
 
-Template* find_template(Array<Template> templates, String name)
+FsgTemplate* find_template(Array<FsgTemplate> templates, String name)
 {
     for (i32 i = 0; i < templates.count; i++) {
         if (templates.data[i].name == name) return &templates.data[i];
@@ -481,7 +481,7 @@ Template* find_template(Array<Template> templates, String name)
 
 }
 
-void sort_posts(Array<Post> posts)
+void sort_posts(Array<FsgPost> posts)
 {
     for (i32 i = 0; i < posts.count; i++) {
         for (i32 j = i; j > 0 && posts[j-1].created < posts[j].created; j--) {
@@ -604,7 +604,7 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
     return false;
 }
 
-void append_post(StringBuilder *sb, Template *tmpl, Post post)
+void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
 {
     for (FsgPart s : tmpl->parts) {
         append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
@@ -647,10 +647,10 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
 {
     SArena scratch = tl_scratch_arena();
 
-    DynamicArray<Template> templates{};
-    DynamicArray<Post> posts{};
-    DynamicArray<Page> pages{};
-    DynamicArray<Tag> tags{};
+    DynamicArray<FsgTemplate> templates{};
+    DynamicArray<FsgPost> posts{};
+    DynamicArray<FsgPage> pages{};
+    DynamicArray<FsgTag> tags{};
 
     String posts_src_path = join_path(src_dir, "_posts", mem_dynamic);
     String posts_dst_path = join_path(output, "posts", mem_dynamic);
@@ -687,7 +687,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
         };
         char *ptr = lexer.at;
 
-        Post post{};
+        FsgPost post{};
 
         Token t = next_token(&lexer);
         while (t.type != TOKEN_EOF) {
@@ -778,7 +778,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
         array_add(&posts, post);
 
         for (i32 i = 0; i < post.tags.count; i++) {
-            for (Tag &t : tags) {
+            for (FsgTag &t : tags) {
                 if (t.str == post.tags[i]) {
                     array_add(&t.posts, post);
                     LOG_INFO("adding post '%.*s' to existing tag: '%.*s'", STRFMT(post.title), STRFMT(t.str));
@@ -787,7 +787,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
             }
 
             {
-                Tag t{};
+                FsgTag t{};
                 t.str = post.tags[i];
                 array_add(&t.posts, post);
                 array_add(&tags, t);
@@ -809,7 +809,7 @@ next_post_file:;
             return;
         }
 
-        Template tmpl{};
+        FsgTemplate tmpl{};
         tmpl.contents = String{ (char*)contents.data, contents.size };
 
         FsgPart tail{};
@@ -892,7 +892,7 @@ next_tmpl_file:;
     }
 
     for (String p : page_files) {
-        Page page{};
+        FsgPage page{};
 
         String filename{ p.data+src_dir.length+1, p.length-src_dir.length-1};
         String out_file = join_path(output, filename, mem_dynamic);
@@ -994,14 +994,14 @@ next_tmpl_file:;
 next_page_file:;
     }
 
-    Template *brief_tmpl = find_template(templates, "post_brief_inline");
-    Template *brief_block_tmpl = find_template(templates, "post_brief_block");
-    Template *full_tmpl = find_template(templates, "post_full_block");
+    FsgTemplate *brief_tmpl = find_template(templates, "post_brief_inline");
+    FsgTemplate *brief_block_tmpl = find_template(templates, "post_brief_block");
+    FsgTemplate *full_tmpl = find_template(templates, "post_full_block");
 
-    Template *tag_tmpl = find_template(templates, "posts_tag");
+    FsgTemplate *tag_tmpl = find_template(templates, "posts_tag");
 
     if (tag_tmpl) {
-        for (Tag tag : tags) {
+        for (FsgTag tag : tags) {
             SArena scratch = tl_scratch_arena();
             StringBuilder sb{ .alloc = scratch };
 
@@ -1009,10 +1009,10 @@ next_page_file:;
                 append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
 
                 if (s.name == "posts.brief" || s.name == "posts.full") {
-                    Template *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
+                    FsgTemplate *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
 
                     sort_posts(tag.posts);
-                    for (Post post : tag.posts) {
+                    for (FsgPost post : tag.posts) {
                         if (!build_drafts && post.draft) continue;
                         append_post(&sb, post_tmpl, post);
                     }
@@ -1031,20 +1031,20 @@ next_page_file:;
     }
 
 
-    for (Page page : pages) {
+    for (FsgPage page : pages) {
         SArena scratch = tl_scratch_arena();
         StringBuilder sb{ .alloc = scratch };
 
-        Template *tmpl = &templates[page.tmpl_index];
+        FsgTemplate *tmpl = &templates[page.tmpl_index];
         for (FsgPart s : tmpl->parts) {
             append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
             if (s.name == page.dst_section_name) {
                 for (FsgPart s2 : page.parts) {
                     append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
                     if (s2.name == "posts.brief" || s2.name == "posts.full") {
-                        Template *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
+                        FsgTemplate *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
 
-                        for (Post post : posts) {
+                        for (FsgPost post : posts) {
                             if (!build_drafts && post.draft) continue;
                             append_post(&sb, post_tmpl, post);
                         }
@@ -1064,9 +1064,9 @@ next_page_file:;
         write_file(page.path, &sb);
     }
 
-    Template *post_tmpl = find_template(templates, "post");
+    FsgTemplate *post_tmpl = find_template(templates, "post");
     if (post_tmpl) {
-    	for (Post post : posts) {
+    	for (FsgPost post : posts) {
             if (!build_drafts && post.draft) continue;
 
             SArena scratch = tl_scratch_arena();
