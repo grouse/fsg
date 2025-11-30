@@ -607,38 +607,48 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
 void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
 {
     for (FsgPart s : tmpl->parts) {
-        append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
-        if (s.name == "post.created") {
-            append_string(sb, post.created);
-        } else if (s.name == "post.title") {
-            append_string(sb, post.title);
-        } else if (s.name == "post.url") {
-            append_string(sb, post.url);
-        } else if (s.name == "post.brief") {
-            append_string(sb, post.brief);
-        } else if (s.name == "post.content") {
-            append_string(sb, post.content);
-        } else if (s.name == "post.tags") {
-            if (post.tags.count > 0) {
-                append_string(sb, "<i class=\"fa fa-tag\"></i>");
+        switch (s.type) {
+        case FSG_PART_VARIABLE:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
 
-                for (i32 i = 0; i < post.tags.count-1; i++) {
+            if (s.name == "post.created") {
+                append_string(sb, post.created);
+            } else if (s.name == "post.title") {
+                append_string(sb, post.title);
+            } else if (s.name == "post.url") {
+                append_string(sb, post.url);
+            } else if (s.name == "post.brief") {
+                append_string(sb, post.brief);
+            } else if (s.name == "post.content") {
+                append_string(sb, post.content);
+            } else if (s.name == "post.tags") {
+                if (post.tags.count > 0) {
+                    append_string(sb, "<i class=\"fa fa-tag\"></i>");
+
+                    for (i32 i = 0; i < post.tags.count-1; i++) {
+                        append_stringf(
+                            sb,
+                            "<a href=\"/posts/tag/%.*s.html\">%.*s</a>, ",
+                            STRFMT(post.tags[i]),
+                            STRFMT(post.tags[i]));
+                    }
+
                     append_stringf(
                         sb,
-                        "<a href=\"/posts/tag/%.*s.html\">%.*s</a>, ",
-                        STRFMT(post.tags[i]),
-                        STRFMT(post.tags[i]));
+                        "<a href=\"/posts/tag/%.*s.html\">%.*s</a>",
+                        STRFMT(post.tags[post.tags.count-1]),
+                        STRFMT(post.tags[post.tags.count-1]));
+
                 }
-
-                append_stringf(
-                    sb,
-                    "<a href=\"/posts/tag/%.*s.html\">%.*s</a>",
-                    STRFMT(post.tags[post.tags.count-1]),
-                    STRFMT(post.tags[post.tags.count-1]));
-
+            } else if(s.name.length > 0) {
+                LOG_ERROR("unhandled section '%.*s'", STRFMT(s.name));
             }
-        } else if(s.name.length > 0) {
-            LOG_ERROR("unhandled section '%.*s'", STRFMT(s.name));
+            break;
+
+        case FSG_PART_CHUNK:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
+            break;
+
         }
     }
 }
@@ -1006,20 +1016,28 @@ next_page_file:;
             StringBuilder sb{ .alloc = scratch };
 
             for (FsgPart s : tag_tmpl->parts) {
-                append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
+                switch (s.type) {
+                case FSG_PART_VARIABLE:
+                    append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
 
-                if (s.name == "posts.brief" || s.name == "posts.full") {
-                    FsgTemplate *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
+                    if (s.name == "posts.brief" || s.name == "posts.full") {
+                        FsgTemplate *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
 
-                    sort_posts(tag.posts);
-                    for (FsgPost post : tag.posts) {
-                        if (!build_drafts && post.draft) continue;
-                        append_post(&sb, post_tmpl, post);
+                        sort_posts(tag.posts);
+                        for (FsgPost post : tag.posts) {
+                            if (!build_drafts && post.draft) continue;
+                            append_post(&sb, post_tmpl, post);
+                        }
+                    } else if (s.name == "tag.str") {
+                        append_string(&sb, tag.str);
+                    } else if (s.name.length > 0) {
+                        LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tag_tmpl->name));
                     }
-                } else if (s.name == "tag.str") {
-                    append_string(&sb, tag.str);
-                } else if (s.name.length > 0) {
-                    LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tag_tmpl->name));
+                    break;
+
+                case FSG_PART_CHUNK:
+                    append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
+                    break;
                 }
             }
 
@@ -1037,27 +1055,35 @@ next_page_file:;
 
         FsgTemplate *tmpl = &templates[page.tmpl_index];
         for (FsgPart s : tmpl->parts) {
-            append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
-            if (s.name == page.dst_section_name) {
-                for (FsgPart s2 : page.parts) {
-                    append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
-                    if (s2.name == "posts.brief" || s2.name == "posts.full") {
-                        FsgTemplate *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
+            switch (s.type) {
+            case FSG_PART_VARIABLE:
+                append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
+                if (s.name == page.dst_section_name) {
+                    for (FsgPart s2 : page.parts) {
+                        append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
+                        if (s2.name == "posts.brief" || s2.name == "posts.full") {
+                            FsgTemplate *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
 
-                        for (FsgPost post : posts) {
-                            if (!build_drafts && post.draft) continue;
-                            append_post(&sb, post_tmpl, post);
+                            for (FsgPost post : posts) {
+                                if (!build_drafts && post.draft) continue;
+                                append_post(&sb, post_tmpl, post);
+                            }
+                        } else if (s2.name.length > 0) {
+                            LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.name), STRFMT(page.name));
                         }
-                    } else if (s2.name.length > 0) {
-                        LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.name), STRFMT(page.name));
                     }
+                } else if (s.name == "page.title") {
+                    append_string(&sb, page.title);
+                } else if (s.name == "page.subtitle") {
+                    append_string(&sb, page.subtitle);
+                } else if (s.name.length > 0){
+                    LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tmpl->name));
                 }
-            } else if (s.name == "page.title") {
-                append_string(&sb, page.title);
-            } else if (s.name == "page.subtitle") {
-                append_string(&sb, page.subtitle);
-            } else if (s.name.length > 0){
-                LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tmpl->name));
+                break;
+
+            case FSG_PART_CHUNK:
+                append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
+                break;
             }
         }
 
