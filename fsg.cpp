@@ -424,8 +424,12 @@ enum FsgPartType {
 };
 
 struct FsgPart {
-    String name;
     FsgPartType type;
+
+    union {
+        String variable;
+    };
+
     i32 offset;
     i32 length;
 };
@@ -611,17 +615,17 @@ void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
         case FSG_PART_VARIABLE:
             append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
 
-            if (s.name == "post.created") {
+            if (s.variable == "post.created") {
                 append_string(sb, post.created);
-            } else if (s.name == "post.title") {
+            } else if (s.variable == "post.title") {
                 append_string(sb, post.title);
-            } else if (s.name == "post.url") {
+            } else if (s.variable == "post.url") {
                 append_string(sb, post.url);
-            } else if (s.name == "post.brief") {
+            } else if (s.variable == "post.brief") {
                 append_string(sb, post.brief);
-            } else if (s.name == "post.content") {
+            } else if (s.variable == "post.content") {
                 append_string(sb, post.content);
-            } else if (s.name == "post.tags") {
+            } else if (s.variable == "post.tags") {
                 if (post.tags.count > 0) {
                     append_string(sb, "<i class=\"fa fa-tag\"></i>");
 
@@ -640,8 +644,8 @@ void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
                         STRFMT(post.tags[post.tags.count-1]));
 
                 }
-            } else if(s.name.length > 0) {
-                LOG_ERROR("unhandled section '%.*s'", STRFMT(s.name));
+            } else if(s.variable.length > 0) {
+                LOG_ERROR("unhandled section '%.*s'", STRFMT(s.variable));
             }
             break;
 
@@ -864,7 +868,7 @@ next_post_file:;
                     while (t2.type != TOKEN_EOF) {
 
                         if (is_identifier(t2, "section")) {
-                            if (!parse_string(&fsg_lexer, &part.name, &t2)) goto next_tmpl_file;
+                            if (!parse_string(&fsg_lexer, &part.variable, &t2)) goto next_tmpl_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_tmpl_file;
                             part.type = FSG_PART_VARIABLE;
                         } else {
@@ -888,7 +892,6 @@ next_post_file:;
         }
 
         tail = FsgPart{ 
-            .name = "", 
             .type = FSG_PART_CHUNK,
             .offset = last_section_end, 
             .length = (i32)(lexer.end - ((char*)contents.data + last_section_end)) 
@@ -961,7 +964,7 @@ next_tmpl_file:;
                                 goto next_page_file;
                             }
                         } else if (is_identifier(t2, "section")) {
-                            if (!parse_string(&fsg_lexer, &part.name, &t2)) goto next_page_file;
+                            if (!parse_string(&fsg_lexer, &part.variable, &t2)) goto next_page_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_page_file;
                             part.type = FSG_PART_VARIABLE;
                         } else if (is_identifier(t2, "title")) {
@@ -992,7 +995,6 @@ next_tmpl_file:;
         }
 
         tail = FsgPart{ 
-            .name = "", 
             .type = FSG_PART_CHUNK,
             .offset = last_section_end, 
             .length = (i32)(lexer.end - ((char*)contents.data + last_section_end)) };
@@ -1020,18 +1022,18 @@ next_page_file:;
                 case FSG_PART_VARIABLE:
                     append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
 
-                    if (s.name == "posts.brief" || s.name == "posts.full") {
-                        FsgTemplate *post_tmpl = s.name == "posts.brief" ? brief_block_tmpl : full_tmpl;
+                    if (s.variable == "posts.brief" || s.variable == "posts.full") {
+                        FsgTemplate *post_tmpl = s.variable == "posts.brief" ? brief_block_tmpl : full_tmpl;
 
                         sort_posts(tag.posts);
                         for (FsgPost post : tag.posts) {
                             if (!build_drafts && post.draft) continue;
                             append_post(&sb, post_tmpl, post);
                         }
-                    } else if (s.name == "tag.str") {
+                    } else if (s.variable == "tag.str") {
                         append_string(&sb, tag.str);
-                    } else if (s.name.length > 0) {
-                        LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tag_tmpl->name));
+                    } else if (s.variable.length > 0) {
+                        LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.variable), STRFMT(tag_tmpl->name));
                     }
                     break;
 
@@ -1058,26 +1060,26 @@ next_page_file:;
             switch (s.type) {
             case FSG_PART_VARIABLE:
                 append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
-                if (s.name == page.dst_section_name) {
+                if (s.variable == page.dst_section_name) {
                     for (FsgPart s2 : page.parts) {
                         append_string(&sb, String{ page.contents.data+s2.offset, s2.length });
-                        if (s2.name == "posts.brief" || s2.name == "posts.full") {
-                            FsgTemplate *post_tmpl = s2.name == "posts.brief" ? brief_tmpl : full_tmpl;
+                        if (s2.variable == "posts.brief" || s2.variable == "posts.full") {
+                            FsgTemplate *post_tmpl = s2.variable == "posts.brief" ? brief_tmpl : full_tmpl;
 
                             for (FsgPost post : posts) {
                                 if (!build_drafts && post.draft) continue;
                                 append_post(&sb, post_tmpl, post);
                             }
-                        } else if (s2.name.length > 0) {
-                            LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.name), STRFMT(page.name));
+                        } else if (s2.variable.length > 0) {
+                            LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.variable), STRFMT(page.name));
                         }
                     }
-                } else if (s.name == "page.title") {
+                } else if (s.variable == "page.title") {
                     append_string(&sb, page.title);
-                } else if (s.name == "page.subtitle") {
+                } else if (s.variable == "page.subtitle") {
                     append_string(&sb, page.subtitle);
-                } else if (s.name.length > 0){
-                    LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.name), STRFMT(tmpl->name));
+                } else if (s.variable.length > 0){
+                    LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.variable), STRFMT(tmpl->name));
                 }
                 break;
 
