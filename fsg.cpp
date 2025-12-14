@@ -907,7 +907,7 @@ next_tmpl_file:;
     for (String p : page_files) {
         FsgPage page{};
 
-        String filename{ p.data+src_dir.length+1, p.length-src_dir.length-1};
+        String filename = path_relative_to(p, src_dir);
         String out_file = join_path(output, filename, mem_dynamic);
 
         page.name = filename;
