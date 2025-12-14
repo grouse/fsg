@@ -673,7 +673,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
     DynamicArray<String> post_files = list_files(posts_src_path, mem_dynamic);
     DynamicArray<String> template_files = list_files(join_path(src_dir, "_templates", mem_dynamic), mem_dynamic);
 
-    remove_files(output);
+    remove_files(output, FILE_LIST_RECURSIVE);
 
     copy_files(src_dir, "css", output);
     copy_files(src_dir, "img", output);
