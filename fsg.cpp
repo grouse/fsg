@@ -421,6 +421,7 @@ bool is_identifier(Token t, String str)
 enum FsgPartType {
     FSG_PART_CHUNK = 0,
     FSG_PART_VARIABLE,
+    FSG_PART_INCLUDE,
 };
 
 struct FsgPart {
@@ -428,6 +429,7 @@ struct FsgPart {
 
     union {
         String variable;
+        String include;
     };
 
     i32 offset;
@@ -608,7 +610,39 @@ bool parse_bool(Lexer *lexer, bool *bool_out, Token *t_out)
     return false;
 }
 
-void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
+void append_template(
+    StringBuilder *sb, 
+    Array<FsgTemplate> templates, 
+    FsgTemplate *tmpl)
+{
+    for (FsgPart s : tmpl->parts) {
+        switch (s.type) {
+        case FSG_PART_VARIABLE:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
+
+            if (s.variable.length > 0) {
+                LOG_ERROR("unhandled section '%.*s'", STRFMT(s.variable));
+            }
+            break;
+
+        case FSG_PART_INCLUDE:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
+            if (auto *incl = find_template(templates, s.include)) {
+                append_template(sb, templates, incl);
+            } else {
+                LOG_ERROR("unknown include: '%.*s'", STRFMT(s.include));
+            }
+            break;
+
+        case FSG_PART_CHUNK:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
+            break;
+
+        }
+    }
+}
+
+void append_post(StringBuilder *sb, Array<FsgTemplate> templates, FsgTemplate *tmpl, FsgPost post)
 {
     for (FsgPart s : tmpl->parts) {
         switch (s.type) {
@@ -646,6 +680,15 @@ void append_post(StringBuilder *sb, FsgTemplate *tmpl, FsgPost post)
                 }
             } else if(s.variable.length > 0) {
                 LOG_ERROR("unhandled section '%.*s'", STRFMT(s.variable));
+            }
+            break;
+
+        case FSG_PART_INCLUDE:
+            append_string(sb, String{ tmpl->contents.data+s.offset, s.length });
+            if (auto *incl = find_template(templates, s.include)) {
+                append_post(sb, templates, incl, post);
+            } else {
+                LOG_ERROR("unknown include: '%.*s'", STRFMT(s.include));
             }
             break;
 
@@ -871,6 +914,10 @@ next_post_file:;
                             if (!parse_string(&fsg_lexer, &part.variable, &t2)) goto next_tmpl_file;
                             if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_tmpl_file;
                             part.type = FSG_PART_VARIABLE;
+                        } else if (is_identifier(t2, "include")) {
+                            if (!parse_string(&fsg_lexer, &part.include, &t2)) goto next_tmpl_file;
+                            if (!require_next_token(&fsg_lexer, ';', &t2)) goto next_tmpl_file;
+                            part.type = FSG_PART_INCLUDE;
                         } else {
                             PARSE_ERRORF(&fsg_lexer, "unexpected token. expected one of 'section', got '%.*s'", STRFMT(t2.str));
                             goto next_tmpl_file;
@@ -1028,12 +1075,21 @@ next_page_file:;
                         sort_posts(tag.posts);
                         for (FsgPost post : tag.posts) {
                             if (!build_drafts && post.draft) continue;
-                            append_post(&sb, post_tmpl, post);
+                            append_post(&sb, templates, post_tmpl, post);
                         }
                     } else if (s.variable == "tag.str") {
                         append_string(&sb, tag.str);
                     } else if (s.variable.length > 0) {
                         LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.variable), STRFMT(tag_tmpl->name));
+                    }
+                    break;
+                
+                case FSG_PART_INCLUDE:
+                    append_string(&sb, String{ tag_tmpl->contents.data+s.offset, s.length });
+                    if (auto *incl = find_template(templates, s.include)) {
+                        append_template(&sb, templates, incl);
+                    } else {
+                        LOG_ERROR("unknown template: '%.*s'", STRFMT(s.include));
                     }
                     break;
 
@@ -1068,7 +1124,7 @@ next_page_file:;
 
                             for (FsgPost post : posts) {
                                 if (!build_drafts && post.draft) continue;
-                                append_post(&sb, post_tmpl, post);
+                                append_post(&sb, templates, post_tmpl, post);
                             }
                         } else if (s2.variable.length > 0) {
                             LOG_ERROR("unhandled section '%.*s' in page '%.*s'", STRFMT(s2.variable), STRFMT(page.name));
@@ -1080,6 +1136,15 @@ next_page_file:;
                     append_string(&sb, page.subtitle);
                 } else if (s.variable.length > 0){
                     LOG_ERROR("unhandled section '%.*s' in template '%.*s'", STRFMT(s.variable), STRFMT(tmpl->name));
+                }
+                break;
+
+            case FSG_PART_INCLUDE:
+                append_string(&sb, String{ tmpl->contents.data+s.offset, s.length });
+                if (auto *incl = find_template(templates, s.include)) {
+                    append_template(&sb, templates, incl);
+                } else {
+                    LOG_ERROR("unknown include: '%.*s'", STRFMT(s.include));
                 }
                 break;
 
@@ -1099,7 +1164,7 @@ next_page_file:;
 
             SArena scratch = tl_scratch_arena();
             StringBuilder sb{ .alloc = scratch };
-            append_post(&sb, post_tmpl, post);
+            append_post(&sb, templates, post_tmpl, post);
 
             write_file(post.path, &sb);
         }
