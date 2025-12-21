@@ -382,6 +382,20 @@ void append_escape_html(StringBuilder *sb, String str)
     }
 }
 
+String html_id(String label, Allocator mem)
+{
+    String id = duplicate_string(label, mem);
+    for (i32 dst = 0, src = 0; src < label.length; src++) {
+        char c = label[src];
+        if (c == ' ') id[dst++] = '_';
+        else if (c == '(' || c == ')') continue;
+        else id[dst++] = to_lower(c);
+        id.length = dst;
+    }
+
+    return id;
+}
+
 
 String join_url(String lhs, String rhs)
 {
@@ -453,11 +467,18 @@ struct FsgPage {
     i32 tmpl_index = -1;
 };
 
+struct FsgHeader {
+    String id;
+    String label;
+    i32 depth;
+};
+
 struct FsgPost {
     String path;
     String title;
     String created;
     DynamicArray<String> tags;
+    DynamicArray<FsgHeader> headers;
     String url;
     bool draft;
     String brief;
@@ -642,6 +663,26 @@ void append_template(
     }
 }
 
+void append_toc(StringBuilder *sb, Array<FsgHeader> headers)
+{
+    if (headers.count == 0) return;
+    LOG_INFO("appending toc");
+
+    append_string(sb, "<aside id=\"table_of_contents\">");
+    append_string(sb, "<ol>");
+
+    i32 current_depth = 1;
+    for (auto it : headers) {
+        for (; it.depth > current_depth; current_depth++) append_string(sb, "<ol>");
+        for (; it.depth < current_depth; current_depth--) append_string(sb, "</ol>");
+
+        append_stringf(sb, "<li><a href=\"#%.*s\">%.*s</a></li>", STRFMT(it.id), STRFMT(it.label));
+    }
+
+    for (; current_depth > 0; current_depth--) append_string(sb, "</ol>");
+    append_string(sb, "</aside>");
+}
+
 void append_post(StringBuilder *sb, Array<FsgTemplate> templates, FsgTemplate *tmpl, FsgPost post)
 {
     for (FsgPart s : tmpl->parts) {
@@ -659,6 +700,8 @@ void append_post(StringBuilder *sb, Array<FsgTemplate> templates, FsgTemplate *t
                 append_string(sb, post.brief);
             } else if (s.variable == "post.content") {
                 append_string(sb, post.content);
+            } else if (s.variable == "post.table_of_contents") {
+                append_toc(sb, post.headers);
             } else if (s.variable == "post.tags") {
                 if (post.tags.count > 0) {
                     append_string(sb, "<i class=\"fa fa-tag\"></i>");
@@ -801,6 +844,27 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                 append_string(&content, "<code>");
                 append_escape_html(&content, t.str);
                 append_string(&content, "</code>");
+            } else if (t.type == '<' && lexer.at[0] == 'h') {
+                t = next_token(&lexer);
+                String tag = t.str;
+
+                String properties { lexer.at, 0 };
+                if (eat_until(&lexer, '>', &t)) {
+                    properties.length = i32(t.str.data + t.str.length - properties.data - 1);
+                }
+
+                String label = slice(t.str, 1);
+                if (eat_until(&lexer, '<', &t)) {
+                    label.length = i32(t.str.data + t.str.length - label.data - 1);
+                }
+
+                String id = html_id(label, scratch);
+                append_stringf(&content, "<%.*s id=\"%.*s\"%.*s>%.*s<", STRFMT(tag), STRFMT(id), STRFMT(properties), STRFMT(label));
+
+                i32 depth = i32_from_string(slice(tag, 1));
+
+                LOG_INFO("header: '%.*s' - '%.*s'", STRFMT(id), STRFMT(label));
+                array_add(&post.headers, { id, label, depth });
             } else if (t.type == TOKEN_ANCHOR) {
                 i32 length = (i32)(t.str.data - ptr);
                 if (length > 0) append_string(&content, String{ ptr, length });
