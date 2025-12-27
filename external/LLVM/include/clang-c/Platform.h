@@ -1,3 +1,53 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b2e246692d6cecea2c57aaef424fa9e35cd30a5dfcd4b0521e562fde059aaaa2
-size 1828
+/*===-- clang-c/Platform.h - C Index platform decls   -------------*- C -*-===*\
+|*                                                                            *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*|
+|*                                                                            *|
+|* This header provides platform specific macros (dllimport, deprecated, ...) *|
+|*                                                                            *|
+\*===----------------------------------------------------------------------===*/
+
+#ifndef LLVM_CLANG_C_PLATFORM_H
+#define LLVM_CLANG_C_PLATFORM_H
+
+#include "clang-c/ExternC.h"
+
+LLVM_CLANG_C_EXTERN_C_BEGIN
+
+/* Windows DLL import/export. */
+#ifndef CINDEX_NO_EXPORTS
+  #define CINDEX_EXPORTS
+#endif
+#if defined(_WIN32) || defined(__CYGWIN__)
+  #ifdef CINDEX_EXPORTS
+    #ifdef _CINDEX_LIB_
+      #define CINDEX_LINKAGE __declspec(dllexport)
+    #else
+      #define CINDEX_LINKAGE __declspec(dllimport)
+    #endif
+  #endif
+#elif defined(CINDEX_EXPORTS) && defined(__GNUC__)
+  #define CINDEX_LINKAGE __attribute__((visibility("default")))
+#endif
+
+#ifndef CINDEX_LINKAGE
+  #define CINDEX_LINKAGE
+#endif
+
+#ifdef __GNUC__
+  #define CINDEX_DEPRECATED __attribute__((deprecated))
+#else
+  #ifdef _MSC_VER
+    #define CINDEX_DEPRECATED __declspec(deprecated)
+  #else
+    #define CINDEX_DEPRECATED
+  #endif
+#endif
+
+LLVM_CLANG_C_EXTERN_C_END
+
+#endif

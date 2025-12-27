@@ -1,3 +1,44 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:95c9540c4f04ea8b9c401720e12f192d8ba7a5dfd61f227488cc0d4afd7b1acb
-size 1339
+//===- TypeTableCollection.h ---------------------------------- *- C++ --*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_DEBUGINFO_CODEVIEW_TYPETABLECOLLECTION_H
+#define LLVM_DEBUGINFO_CODEVIEW_TYPETABLECOLLECTION_H
+
+#include "llvm/DebugInfo/CodeView/TypeCollection.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/StringSaver.h"
+
+#include <vector>
+
+namespace llvm {
+namespace codeview {
+
+class LLVM_ABI TypeTableCollection : public TypeCollection {
+public:
+  explicit TypeTableCollection(ArrayRef<ArrayRef<uint8_t>> Records);
+
+  std::optional<TypeIndex> getFirst() override;
+  std::optional<TypeIndex> getNext(TypeIndex Prev) override;
+
+  CVType getType(TypeIndex Index) override;
+  StringRef getTypeName(TypeIndex Index) override;
+  bool contains(TypeIndex Index) override;
+  uint32_t size() override;
+  uint32_t capacity() override;
+  bool replaceType(TypeIndex &Index, CVType Data, bool Stabilize) override;
+
+private:
+  BumpPtrAllocator Allocator;
+  StringSaver NameStorage;
+  std::vector<StringRef> Names;
+  ArrayRef<ArrayRef<uint8_t>> Records;
+};
+}
+}
+
+#endif

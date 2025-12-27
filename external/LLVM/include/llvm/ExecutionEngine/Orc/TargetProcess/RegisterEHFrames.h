@@ -1,3 +1,44 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:679766f4123b733afb35608da9cc4a721a973d375de7e1c6ef2f517ce25a26e3
-size 1805
+//===----- RegisterEHFrames.h -- Register EH frame sections -----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Support for dynamically registering and deregistering eh-frame sections
+// in-process via libunwind.
+//
+// FIXME: The functionality in this file should be moved to the ORC runtime.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_REGISTEREHFRAMES_H
+#define LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_REGISTEREHFRAMES_H
+
+#include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
+
+namespace llvm {
+namespace orc {
+
+/// Register frames in the given eh-frame section with libunwind.
+LLVM_ABI Error registerEHFrameSection(const void *EHFrameSectionAddr,
+                                      size_t EHFrameSectionSize);
+
+/// Unregister frames in the given eh-frame section with libunwind.
+LLVM_ABI Error deregisterEHFrameSection(const void *EHFrameSectionAddr,
+                                        size_t EHFrameSectionSize);
+
+} // end namespace orc
+} // end namespace llvm
+
+extern "C" LLVM_ABI llvm::orc::shared::CWrapperFunctionResult
+llvm_orc_registerEHFrameSectionAllocAction(const char *ArgData, size_t ArgSize);
+
+extern "C" LLVM_ABI llvm::orc::shared::CWrapperFunctionResult
+llvm_orc_deregisterEHFrameSectionAllocAction(const char *ArgData,
+                                             size_t ArgSize);
+
+#endif // LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_REGISTEREHFRAMES_H

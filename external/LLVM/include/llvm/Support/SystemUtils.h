@@ -1,3 +1,32 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:43c5bbefb7fd15af9379c9d7ef287b4094dbf7df822f9f724f278bf0b07dcbd4
-size 1085
+//===- SystemUtils.h - Utilities to do low-level system stuff ---*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains functions used to do a variety of low-level, often
+// system-specific, tasks.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_SUPPORT_SYSTEMUTILS_H
+#define LLVM_SUPPORT_SYSTEMUTILS_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+class raw_ostream;
+
+/// Determine if the raw_ostream provided is connected to a terminal. If so,
+/// generate a warning message to errs() advising against display of bitcode
+/// and return true. Otherwise just return false.
+/// Check for output written to a console
+LLVM_ABI bool CheckBitcodeOutputToConsole(
+    raw_ostream &stream_to_check ///< The stream to be checked
+);
+
+} // namespace llvm
+
+#endif

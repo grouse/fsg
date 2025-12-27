@@ -1,3 +1,23 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8d5ed8ded432257e08a730413ebc09b5def4e28cf9b8b571a0289a0603097e69
-size 780
+//===- DeclareRuntimeLibcalls.h ---------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_UTILS_DECLARERUNTIMELIBCALLS_H
+#define LLVM_TRANSFORMS_UTILS_DECLARERUNTIMELIBCALLS_H
+
+#include "llvm/IR/PassManager.h"
+
+namespace llvm {
+class DeclareRuntimeLibcallsPass
+    : public PassInfoMixin<DeclareRuntimeLibcallsPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM);
+};
+
+} // end namespace llvm
+
+#endif // LLVM_TRANSFORMS_UTILS_DECLARERUNTIMELIBCALLS_H

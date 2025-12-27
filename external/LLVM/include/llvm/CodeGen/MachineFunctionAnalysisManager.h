@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:16b0815f8052da740cc6389525e29a28be5502a7a5855d207365aa8ce26b8460
-size 963
+//===- llvm/CodeGen/MachineFunctionAnalysisManager.h ------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Typedef for MachineFunctionAnalysisManager as an explicit instantiation of
+// AnalysisManager<MachineFunction>.
+//
+//===----------------------------------------------------------------------===//
+#ifndef LLVM_CODEGEN_MACHINEFUNCTIONANALYSISMANAGER
+#define LLVM_CODEGEN_MACHINEFUNCTIONANALYSISMANAGER
+
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+
+class MachineFunction;
+
+extern template class LLVM_TEMPLATE_ABI AnalysisManager<MachineFunction>;
+using MachineFunctionAnalysisManager = AnalysisManager<MachineFunction>;
+
+} // namespace llvm
+
+#endif

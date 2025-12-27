@@ -15,5 +15,10 @@
 *.html filter=lfs diff=lfs merge=lfs -text
 *.css filter=lfs diff=lfs merge=lfs -text
 *.js filter=lfs diff=lfs merge=lfs -text
+*.def filter=lfs diff=lfs merge=lfs -text
+*.inc filter=lfs diff=lfs merge=lfs -text
+*.td filter=lfs diff=lfs merge=lfs -text
+*.TXT filter=lfs diff=lfs merge=lfs -text
+*.8 filter=lfs diff=lfs merge=lfs -text
 * !text !filter !merge !diff
 external/LLVM/lib/linux/libclang.so.21.1.8 filter=lfs diff=lfs merge=lfs -text

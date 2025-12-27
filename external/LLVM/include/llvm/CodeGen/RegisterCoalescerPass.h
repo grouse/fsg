@@ -1,3 +1,27 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d42df7b9ab2cfc1aa05265a941c65c5f823b5781c853cff93aa306660ff48f20
-size 906
+//===- llvm/CodeGen/RegisterCoalescerPass.h ---------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_REGISTER_COALESCERPASS_H
+#define LLVM_CODEGEN_REGISTER_COALESCERPASS_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+class RegisterCoalescerPass : public PassInfoMixin<RegisterCoalescerPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+
+  MachineFunctionProperties getClearedProperties() const {
+    return MachineFunctionProperties().setIsSSA();
+  }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_REGISTER_COALESCERPASS_H

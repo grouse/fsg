@@ -1,3 +1,39 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d6d5b07025dfe53e1969bd7fc0d6317670ba9a45df286f13cdcee52d35010f9b
-size 1546
+//===-- ObjectFileInterface.h - MU interface utils for objects --*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Utilities for building MaterializationUnit::Interface objects from
+// object files.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_EXECUTIONENGINE_ORC_OBJECTFILEINTERFACE_H
+#define LLVM_EXECUTIONENGINE_ORC_OBJECTFILEINTERFACE_H
+
+#include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/MemoryBuffer.h"
+
+namespace llvm {
+namespace orc {
+
+/// Adds an initializer symbol to the given MU interface.
+/// The init symbol's name is guaranteed to be unique within I, and will be of
+/// the form $.<ObjFileName>.__inits.<N>, where N is some integer.
+LLVM_ABI void addInitSymbol(MaterializationUnit::Interface &I,
+                            ExecutionSession &ES, StringRef ObjFileName);
+
+/// Returns a MaterializationUnit::Interface for the object file contained in
+/// the given buffer, or an error if the buffer does not contain a valid object
+/// file.
+LLVM_ABI Expected<MaterializationUnit::Interface>
+getObjectFileInterface(ExecutionSession &ES, MemoryBufferRef ObjBuffer);
+
+} // End namespace orc
+} // End namespace llvm
+
+#endif // LLVM_EXECUTIONENGINE_ORC_OBJECTFILEINTERFACE_H

@@ -1,3 +1,32 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d10e16181a6cb9c32af9c514fc20176593c4bfd888abf1288a58f19b32fd6eb2
-size 1230
+//===- llvm/Support/Valgrind.h - Communication with Valgrind ----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Methods for communicating with a valgrind instance this program is running
+// under.  These are all no-ops unless LLVM was configured on a system with the
+// valgrind headers installed and valgrind is controlling this process.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_SUPPORT_VALGRIND_H
+#define LLVM_SUPPORT_VALGRIND_H
+
+#include "llvm/Support/Compiler.h"
+#include <cstddef>
+
+namespace llvm {
+namespace sys {
+  // True if Valgrind is controlling this process.
+LLVM_ABI bool RunningOnValgrind();
+
+// Discard valgrind's translation of code in the range [Addr .. Addr + Len).
+// Otherwise valgrind may continue to execute the old version of the code.
+LLVM_ABI void ValgrindDiscardTranslations(const void *Addr, size_t Len);
+} // namespace sys
+} // end namespace llvm
+
+#endif // LLVM_SUPPORT_VALGRIND_H

@@ -1,3 +1,41 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8e111ab3e1ad709c58e0a59b5f411fb00cd9ff0b051f000fb099a6895f4605b6
-size 1419
+//===-- MCJIT.h - MC-Based Just-In-Time Execution Engine --------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file forces the MCJIT to link in on certain operating systems.
+// (Windows).
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_EXECUTIONENGINE_MCJIT_H
+#define LLVM_EXECUTIONENGINE_MCJIT_H
+
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/Support/Compiler.h"
+#include <cstdlib>
+
+extern "C" LLVM_ABI void LLVMLinkInMCJIT();
+
+namespace {
+  struct ForceMCJITLinking {
+    ForceMCJITLinking() {
+      // We must reference MCJIT in such a way that compilers will not
+      // delete it all as dead code, even with whole program optimization,
+      // yet is effectively a NO-OP. As the compiler isn't smart enough
+      // to know that getenv() never returns -1, this will do the job.
+      // This is so that globals in the translation units where these functions
+      // are defined are forced to be initialized, populating various
+      // registries.
+      if (std::getenv("bar") != (char*) -1)
+        return;
+
+      LLVMLinkInMCJIT();
+    }
+  } ForceMCJITLinking;
+}
+
+#endif

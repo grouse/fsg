@@ -1,3 +1,43 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9da4a1c852983bd368b8dcc26fa0987ecf2491f665370853b4d9d56e669307bd
-size 1537
+//===- ObjCopy.h ------------------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_OBJCOPY_OBJCOPY_H
+#define LLVM_OBJCOPY_OBJCOPY_H
+
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
+
+namespace llvm {
+class raw_ostream;
+
+namespace object {
+class Archive;
+class Binary;
+} // end namespace object
+
+namespace objcopy {
+class MultiFormatConfig;
+
+/// Applies the transformations described by \p Config to
+/// each member in archive \p Ar.
+/// Writes a result in a file specified by \p Config.OutputFilename.
+/// \returns any Error encountered whilst performing the operation.
+LLVM_ABI Error executeObjcopyOnArchive(const MultiFormatConfig &Config,
+                                       const object::Archive &Ar);
+
+/// Applies the transformations described by \p Config to \p In and writes
+/// the result into \p Out. This function does the dispatch based on the
+/// format of the input binary (COFF, ELF, MachO or wasm).
+/// \returns any Error encountered whilst performing the operation.
+LLVM_ABI Error executeObjcopyOnBinary(const MultiFormatConfig &Config,
+                                      object::Binary &In, raw_ostream &Out);
+
+} // end namespace objcopy
+} // end namespace llvm
+
+#endif // LLVM_OBJCOPY_OBJCOPY_H

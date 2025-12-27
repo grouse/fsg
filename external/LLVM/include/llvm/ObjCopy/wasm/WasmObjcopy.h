@@ -1,3 +1,39 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ebe2df40c68f5e664cf611c2e391b40246da82c4700291bad9758e3a2a2a07da
-size 1235
+//===- WasmObjcopy.h -------------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_OBJCOPY_WASM_WASMOBJCOPY_H
+#define LLVM_OBJCOPY_WASM_WASMOBJCOPY_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+class Error;
+class raw_ostream;
+
+namespace object {
+class WasmObjectFile;
+} // end namespace object
+
+namespace objcopy {
+struct CommonConfig;
+struct WasmConfig;
+
+namespace wasm {
+/// Apply the transformations described by \p Config and \p WasmConfig
+/// to \p In and writes the result into \p Out.
+/// \returns any Error encountered whilst performing the operation.
+LLVM_ABI Error executeObjcopyOnBinary(const CommonConfig &Config,
+                                      const WasmConfig &,
+                                      object::WasmObjectFile &In,
+                                      raw_ostream &Out);
+
+} // end namespace wasm
+} // end namespace objcopy
+} // end namespace llvm
+
+#endif // LLVM_OBJCOPY_WASM_WASMOBJCOPY_H

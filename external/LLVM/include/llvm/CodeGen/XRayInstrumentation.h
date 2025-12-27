@@ -1,3 +1,25 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e22da5f9bcb49c503fac62f318f2a7371a0974cda1df6bccd3ea8a1da4f1847c
-size 831
+//===- llvm/CodeGen/XRayInstrumentation.h -----------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_XRAYINSTRUMENTATION_H
+#define LLVM_CODEGEN_XRAYINSTRUMENTATION_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class XRayInstrumentationPass : public PassInfoMixin<XRayInstrumentationPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+  static bool isRequired() { return true; }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_XRAYINSTRUMENTATION_H

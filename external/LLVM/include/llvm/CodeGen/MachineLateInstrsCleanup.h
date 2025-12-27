@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7c7b87f2d44fda591f1a7a42365bd7e753c9d6ccf74d6f313592e57e9172310f
-size 959
+//===- llvm/CodeGen/MachineLateInstrsCleanup.h ------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+#ifndef LLVM_CODEGEN_MACHINELATEINSTRSCLEANUP_H
+#define LLVM_CODEGEN_MACHINELATEINSTRSCLEANUP_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class MachineLateInstrsCleanupPass
+    : public PassInfoMixin<MachineLateInstrsCleanupPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MachineFunction,
+                        MachineFunctionAnalysisManager &MachineFunctionAM);
+
+  MachineFunctionProperties getRequiredProperties() const {
+    return MachineFunctionProperties().setNoVRegs();
+  }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_MACHINELATEINSTRSCLEANUP_H

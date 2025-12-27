@@ -1,3 +1,34 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d4c0e34314055f5fae630fc8bffd3d017c6e10a837a5293f912ea54e5c3440d9
-size 1061
+//===-------------------------- HardwareUnit.h ------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+///
+/// This file defines a base class for describing a simulated hardware
+/// unit.  These units are used to construct a simulated backend.
+///
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_MCA_HARDWAREUNITS_HARDWAREUNIT_H
+#define LLVM_MCA_HARDWAREUNITS_HARDWAREUNIT_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+namespace mca {
+
+class LLVM_ABI HardwareUnit {
+  HardwareUnit(const HardwareUnit &H) = delete;
+  HardwareUnit &operator=(const HardwareUnit &H) = delete;
+
+public:
+  HardwareUnit() = default;
+  virtual ~HardwareUnit();
+};
+
+} // namespace mca
+} // namespace llvm
+#endif // LLVM_MCA_HARDWAREUNITS_HARDWAREUNIT_H

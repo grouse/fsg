@@ -1,3 +1,25 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:5966614e6f44fc55373da8f56bdfae79734d947d5910388c6ef86756b2ef95cf
-size 826
+//===- llvm/CodeGen/RemoveRedundantDebugValues.h ----------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_REMOVEREDUNDANTDEBUGVALUES_H
+#define LLVM_CODEGEN_REMOVEREDUNDANTDEBUGVALUES_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class RemoveRedundantDebugValuesPass
+    : public PassInfoMixin<RemoveRedundantDebugValuesPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_REMOVEREDUNDANTDEBUGVALUES_H

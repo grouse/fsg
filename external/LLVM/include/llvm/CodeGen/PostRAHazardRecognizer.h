@@ -1,3 +1,26 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:0a22d82c49e026a75c40f4bfc1da4b2e864e97de958a3548d18eb360fc7e641e
-size 850
+//===- llvm/CodeGen/PostRAHazardRecognizer.h --------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_POSTRAHAZARDRECOGNIZER_H
+#define LLVM_CODEGEN_POSTRAHAZARDRECOGNIZER_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class PostRAHazardRecognizerPass
+    : public PassInfoMixin<PostRAHazardRecognizerPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+  static bool isRequired() { return true; }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_POSTRAHAZARDRECOGNIZER_H

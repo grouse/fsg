@@ -1,3 +1,26 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:46ff6ecb3d5624455811bb1bb936f0602276bf3f916406480e5da2c612038960
-size 872
+//===- llvm/CodeGen/StackFrameLayoutAnalysisPass.h --------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_STACKFRAMELAYOUTANALYSISPASS_H
+#define LLVM_CODEGEN_STACKFRAMELAYOUTANALYSISPASS_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class StackFrameLayoutAnalysisPass
+    : public PassInfoMixin<StackFrameLayoutAnalysisPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+  static bool isRequired() { return true; }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_STACKFRAMELAYOUTANALYSISPASS_H

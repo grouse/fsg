@@ -1,3 +1,32 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e8076e9ae872c06c22a64f33ffa704fb036e4d4ac9cb99aa8f351286ea922ee3
-size 1305
+// Define intrinsics written by hand
+
+// VEL Intrinsic instructions.
+let TargetPrefix = "ve" in {
+  def int_ve_vl_pack_f32p : ClangBuiltin<"__builtin_ve_vl_pack_f32p">,
+                            DefaultAttrsIntrinsic<[llvm_i64_ty], [llvm_ptr_ty, llvm_ptr_ty],
+                                      [IntrReadMem]>;
+  def int_ve_vl_pack_f32a : ClangBuiltin<"__builtin_ve_vl_pack_f32a">,
+                            DefaultAttrsIntrinsic<[llvm_i64_ty], [llvm_ptr_ty],
+                                      [IntrReadMem]>;
+
+  def int_ve_vl_extract_vm512u :
+      ClangBuiltin<"__builtin_ve_vl_extract_vm512u">,
+      Intrinsic<[LLVMType<v256i1>], [LLVMType<v512i1>], [IntrNoMem]>;
+
+  def int_ve_vl_extract_vm512l :
+      ClangBuiltin<"__builtin_ve_vl_extract_vm512l">,
+      Intrinsic<[LLVMType<v256i1>], [LLVMType<v512i1>], [IntrNoMem]>;
+
+  def int_ve_vl_insert_vm512u :
+      ClangBuiltin<"__builtin_ve_vl_insert_vm512u">,
+      Intrinsic<[LLVMType<v512i1>], [LLVMType<v512i1>, LLVMType<v256i1>],
+                [IntrNoMem]>;
+
+  def int_ve_vl_insert_vm512l :
+      ClangBuiltin<"__builtin_ve_vl_insert_vm512l">,
+      Intrinsic<[LLVMType<v512i1>], [LLVMType<v512i1>, LLVMType<v256i1>],
+                [IntrNoMem]>;
+}
+
+// Define intrinsics automatically generated
+include "llvm/IR/IntrinsicsVEVL.gen.td"

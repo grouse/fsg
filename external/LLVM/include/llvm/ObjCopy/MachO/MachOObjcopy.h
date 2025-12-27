@@ -1,3 +1,48 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:1943ab84315f61d7c18e3d33f1000126f3d4852d631692836206aeb5bfe6a63c
-size 1655
+//===- MachOObjcopy.h -------------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_OBJCOPY_MACHO_MACHOOBJCOPY_H
+#define LLVM_OBJCOPY_MACHO_MACHOOBJCOPY_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+class Error;
+class raw_ostream;
+
+namespace object {
+class MachOObjectFile;
+class MachOUniversalBinary;
+} // end namespace object
+
+namespace objcopy {
+struct CommonConfig;
+struct MachOConfig;
+class MultiFormatConfig;
+
+namespace macho {
+/// Apply the transformations described by \p Config and \p MachOConfig to
+/// \p In and writes the result into \p Out.
+/// \returns any Error encountered whilst performing the operation.
+LLVM_ABI Error executeObjcopyOnBinary(const CommonConfig &Config,
+                                      const MachOConfig &MachOConfig,
+                                      object::MachOObjectFile &In,
+                                      raw_ostream &Out);
+
+/// Apply the transformations described by \p Config and \p MachOConfig to
+/// \p In and writes the result into \p Out.
+/// \returns any Error encountered whilst performing the operation.
+LLVM_ABI Error executeObjcopyOnMachOUniversalBinary(
+    const MultiFormatConfig &Config, const object::MachOUniversalBinary &In,
+    raw_ostream &Out);
+
+} // end namespace macho
+} // end namespace objcopy
+} // end namespace llvm
+
+#endif // LLVM_OBJCOPY_MACHO_MACHOOBJCOPY_H

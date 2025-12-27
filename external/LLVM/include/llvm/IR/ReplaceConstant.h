@@ -1,3 +1,44 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:760f5ea4164d3626a4d6d7f8c2b3c0ea1df74caaeca8ec8ca0d098ba04b065a8
-size 1607
+//===- ReplaceConstant.h - Replacing LLVM constant expressions --*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file declares the utility function for replacing LLVM constant
+// expressions by instructions.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_IR_REPLACECONSTANT_H
+#define LLVM_IR_REPLACECONSTANT_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+
+template <typename T> class ArrayRef;
+class Constant;
+class Function;
+
+/// Replace constant expressions users of the given constants with
+/// instructions. Return whether anything was changed.
+///
+/// Passing RestrictToFunc will restrict the constant replacement
+/// to the passed in functions scope, as opposed to the replacements
+/// occurring at module scope.
+///
+/// RemoveDeadConstants by default will remove all dead constants as
+/// the final step of the function after replacement, when passed
+/// false it will skip this final step.
+///
+/// If \p IncludeSelf is enabled, also convert the passed constants themselves
+/// to instructions, rather than only their users.
+LLVM_ABI bool convertUsersOfConstantsToInstructions(
+    ArrayRef<Constant *> Consts, Function *RestrictToFunc = nullptr,
+    bool RemoveDeadConstants = true, bool IncludeSelf = false);
+
+} // end namespace llvm
+
+#endif // LLVM_IR_REPLACECONSTANT_H

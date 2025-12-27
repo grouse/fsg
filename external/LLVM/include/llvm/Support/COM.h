@@ -1,3 +1,37 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6b4f93ab252fd4da622ae66f61cad55ca01cc0b182a1a79de774c5132de8ecc5
-size 1067
+//===- llvm/Support/COM.h ---------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+///
+/// Provides a library for accessing COM functionality of the Host OS.
+///
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_SUPPORT_COM_H
+#define LLVM_SUPPORT_COM_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+namespace sys {
+
+enum class COMThreadingMode { SingleThreaded, MultiThreaded };
+
+class InitializeCOMRAII {
+public:
+  LLVM_ABI explicit InitializeCOMRAII(COMThreadingMode Threading,
+                                      bool SpeedOverMemory = false);
+  LLVM_ABI ~InitializeCOMRAII();
+
+private:
+  InitializeCOMRAII(const InitializeCOMRAII &) = delete;
+  void operator=(const InitializeCOMRAII &) = delete;
+};
+}
+}
+
+#endif

@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f68b97c290fce478aa66f2d724ba844f3d5fb0edd919e6a2f549ea7bac6580b4
-size 893
+//===- llvm/CodeGen/PeepholeOptimizer.h -------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_PEEPHOLEOPTIMIZER_H
+#define LLVM_CODEGEN_PEEPHOLEOPTIMIZER_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class PeepholeOptimizerPass : public PassInfoMixin<PeepholeOptimizerPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+
+  MachineFunctionProperties getRequiredProperties() const {
+    return MachineFunctionProperties().setIsSSA();
+  }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_PEEPHOLEOPTIMIZER_H

@@ -1,3 +1,36 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9deaf6969c211c0c0bc771c9e91bb0a8b17752f56a371ffb0c3206e95309404c
-size 1231
+//===- NoInferenceModelRunner.h ---- noop ML model runner  ------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+
+#ifndef LLVM_ANALYSIS_NOINFERENCEMODELRUNNER_H
+#define LLVM_ANALYSIS_NOINFERENCEMODELRUNNER_H
+
+#include "llvm/Analysis/MLModelRunner.h"
+#include "llvm/Support/Compiler.h"
+namespace llvm {
+class TensorSpec;
+
+/// A pseudo model runner. We use it to store feature values when collecting
+/// logs for the default policy, in 'development' mode, but never ask it to
+/// 'run'.
+class NoInferenceModelRunner : public MLModelRunner {
+public:
+  LLVM_ABI NoInferenceModelRunner(LLVMContext &Ctx,
+                                  const std::vector<TensorSpec> &Inputs);
+
+  static bool classof(const MLModelRunner *R) {
+    return R->getKind() == MLModelRunner::Kind::NoOp;
+  }
+
+private:
+  void *evaluateUntyped() override {
+    llvm_unreachable("We shouldn't call run on this model runner.");
+  }
+};
+} // namespace llvm
+#endif // LLVM_ANALYSIS_NOINFERENCEMODELRUNNER_H

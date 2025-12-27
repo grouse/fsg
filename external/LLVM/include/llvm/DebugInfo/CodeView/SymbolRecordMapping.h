@@ -1,3 +1,47 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:45e0130b6238b0be77332f838ea97377e2854025c2f36522e5c18726da2428f5
-size 1607
+//===- SymbolRecordMapping.h ------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_DEBUGINFO_CODEVIEW_SYMBOLRECORDMAPPING_H
+#define LLVM_DEBUGINFO_CODEVIEW_SYMBOLRECORDMAPPING_H
+
+#include "llvm/DebugInfo/CodeView/CodeViewRecordIO.h"
+#include "llvm/DebugInfo/CodeView/SymbolVisitorCallbacks.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+class BinaryStreamReader;
+class BinaryStreamWriter;
+
+namespace codeview {
+class LLVM_ABI SymbolRecordMapping : public SymbolVisitorCallbacks {
+public:
+  explicit SymbolRecordMapping(BinaryStreamReader &Reader,
+                               CodeViewContainer Container)
+      : IO(Reader), Container(Container) {}
+  explicit SymbolRecordMapping(BinaryStreamWriter &Writer,
+                               CodeViewContainer Container)
+      : IO(Writer), Container(Container) {}
+
+  Error visitSymbolBegin(CVSymbol &Record) override;
+  Error visitSymbolEnd(CVSymbol &Record) override;
+
+#define SYMBOL_RECORD(EnumName, EnumVal, Name)                                 \
+  Error visitKnownRecord(CVSymbol &CVR, Name &Record) override;
+#define SYMBOL_RECORD_ALIAS(EnumName, EnumVal, Name, AliasName)
+#include "llvm/DebugInfo/CodeView/CodeViewSymbols.def"
+
+private:
+  std::optional<SymbolKind> Kind;
+
+  CodeViewRecordIO IO;
+  CodeViewContainer Container;
+};
+}
+}
+
+#endif

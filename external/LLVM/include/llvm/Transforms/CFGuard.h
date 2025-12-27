@@ -1,3 +1,42 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:af03ffd51bed2fc69468362dfe73219abe8a4057110f7f5a6e3717942be37c3a
-size 1243
+//===-- CFGuard.h - CFGuard Transformations ---------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===---------------------------------------------------------------------===//
+// Windows Control Flow Guard passes (/guard:cf).
+//===---------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_CFGUARD_H
+#define LLVM_TRANSFORMS_CFGUARD_H
+
+#include "llvm/IR/PassManager.h"
+
+namespace llvm {
+
+class FunctionPass;
+class GlobalValue;
+
+class CFGuardPass : public PassInfoMixin<CFGuardPass> {
+public:
+  enum class Mechanism { Check, Dispatch };
+
+  CFGuardPass(Mechanism M = Mechanism::Check) : GuardMechanism(M) {}
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM);
+
+private:
+  Mechanism GuardMechanism;
+};
+
+/// Insert Control FLow Guard checks on indirect function calls.
+FunctionPass *createCFGuardCheckPass();
+
+/// Insert Control FLow Guard dispatches on indirect function calls.
+FunctionPass *createCFGuardDispatchPass();
+
+bool isCFGuardFunction(const GlobalValue *GV);
+
+} // namespace llvm
+
+#endif

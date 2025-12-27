@@ -1,3 +1,25 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:050b11a2df4f014e22726dd126e1c72ef911c25302fab6d629572c52de674c04
-size 835
+//===- DlltoolDriver.h - dlltool.exe-compatible driver ----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Defines an interface to a dlltool.exe-compatible driver.
+// Used by llvm-dlltool.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TOOLDRIVERS_LLVM_DLLTOOL_DLLTOOLDRIVER_H
+#define LLVM_TOOLDRIVERS_LLVM_DLLTOOL_DLLTOOLDRIVER_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+template <typename T> class ArrayRef;
+
+LLVM_ABI int dlltoolDriverMain(ArrayRef<const char *> ArgsArr);
+} // namespace llvm
+
+#endif

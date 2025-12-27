@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ea17685d866844d94ed0f67e6d61b66a910988e5bf288e2153dca527589dc2b6
-size 952
+//===- LoadStoreVectorizer.cpp - GPU Load & Store Vectorizer --------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_VECTORIZE_LOADSTOREVECTORIZER_H
+#define LLVM_TRANSFORMS_VECTORIZE_LOADSTOREVECTORIZER_H
+
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+class Pass;
+class Function;
+
+class LoadStoreVectorizerPass : public PassInfoMixin<LoadStoreVectorizerPass> {
+public:
+  LLVM_ABI PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
+/// Create a legacy pass manager instance of the LoadStoreVectorizer pass
+LLVM_ABI Pass *createLoadStoreVectorizerPass();
+}
+
+#endif /* LLVM_TRANSFORMS_VECTORIZE_LOADSTOREVECTORIZER_H */

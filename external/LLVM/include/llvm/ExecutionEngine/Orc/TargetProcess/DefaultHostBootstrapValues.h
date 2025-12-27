@@ -1,3 +1,29 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ee0899d541760d1525f82a57fda6101545a3e515e370a842008c34619978a412
-size 1116
+//===- DefaultHostBootstrapValues.h - Defaults for host process -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Set sensible default bootstrap values for JIT execution in the host process.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_DEFAULTHOSTBOOTSTRAPVALUES_H
+#define LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_DEFAULTHOSTBOOTSTRAPVALUES_H
+
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
+#include "llvm/Support/Compiler.h"
+#include <vector>
+
+namespace llvm::orc {
+
+LLVM_ABI void addDefaultBootstrapValuesForHostProcess(
+    StringMap<std::vector<char>> &BootstrapMap,
+    StringMap<ExecutorAddr> &BootstrapSymbols);
+
+} // namespace llvm::orc
+
+#endif // LLVM_EXECUTIONENGINE_ORC_TARGETPROCESS_DEFAULTHOSTBOOTSTRAPVALUES_H

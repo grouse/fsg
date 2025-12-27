@@ -1,3 +1,37 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6a8d02f1d10e0cec4d042ab8b6f6976f03aed0b9df7798d2d18a2b0698123bb1
-size 1210
+//===- IPDBLineNumber.h - base interface for PDB line no. info ---*- C++-*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_DEBUGINFO_PDB_IPDBLINENUMBER_H
+#define LLVM_DEBUGINFO_PDB_IPDBLINENUMBER_H
+
+#include "llvm/Support/Compiler.h"
+#include <cstdint>
+
+namespace llvm {
+namespace pdb {
+class LLVM_ABI IPDBLineNumber {
+public:
+  virtual ~IPDBLineNumber();
+
+  virtual uint32_t getLineNumber() const = 0;
+  virtual uint32_t getLineNumberEnd() const = 0;
+  virtual uint32_t getColumnNumber() const = 0;
+  virtual uint32_t getColumnNumberEnd() const = 0;
+  virtual uint32_t getAddressSection() const = 0;
+  virtual uint32_t getAddressOffset() const = 0;
+  virtual uint32_t getRelativeVirtualAddress() const = 0;
+  virtual uint64_t getVirtualAddress() const = 0;
+  virtual uint32_t getLength() const = 0;
+  virtual uint32_t getSourceFileId() const = 0;
+  virtual uint32_t getCompilandId() const = 0;
+  virtual bool isStatement() const = 0;
+};
+}
+}
+
+#endif

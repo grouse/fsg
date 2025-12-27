@@ -1,3 +1,34 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:55dcd2fed17b6bf79eecdbc318b54d8ec443b9edc35775b1ef6ac450193746a3
-size 941
+//===-- llvm/Support/TarWriter.h - Tar archive file creator -----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_SUPPORT_TARWRITER_H
+#define LLVM_SUPPORT_TARWRITER_H
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
+
+namespace llvm {
+class TarWriter {
+public:
+  LLVM_ABI static Expected<std::unique_ptr<TarWriter>>
+  create(StringRef OutputPath, StringRef BaseDir);
+
+  LLVM_ABI void append(StringRef Path, StringRef Data);
+
+private:
+  TarWriter(int FD, StringRef BaseDir);
+  raw_fd_ostream OS;
+  std::string BaseDir;
+  StringSet<> Files;
+};
+}
+
+#endif

@@ -1,3 +1,25 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b5a275b477e2a51ff4ffbfa67f8ca3bd1613454ac9672ac4a3d3d8cd57820ad6
-size 822
+//===- llvm/CodeGen/RenameIndependentSubregs.h ------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_RENAME_INDEPENDENT_SUBREGS_H
+#define LLVM_CODEGEN_RENAME_INDEPENDENT_SUBREGS_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class RenameIndependentSubregsPass
+    : public PassInfoMixin<RenameIndependentSubregsPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_RENAME_INDEPENDENT_SUBREGS_H

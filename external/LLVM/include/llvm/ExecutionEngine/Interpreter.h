@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:5ec887d6bee6302a7fa89e872b0be5d9ee6497477ead51d83dc74200923ccedb
-size 917
+//===-- Interpreter.h - Abstract Execution Engine Interface -----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file forces the interpreter to link in on certain operating systems.
+// (Windows).
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_EXECUTIONENGINE_INTERPRETER_H
+#define LLVM_EXECUTIONENGINE_INTERPRETER_H
+
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/Support/Compiler.h"
+
+extern "C" LLVM_ABI void LLVMLinkInInterpreter();
+
+namespace {
+  struct ForceInterpreterLinking {
+    ForceInterpreterLinking() { LLVMLinkInInterpreter(); }
+  } ForceInterpreterLinking;
+}
+
+#endif

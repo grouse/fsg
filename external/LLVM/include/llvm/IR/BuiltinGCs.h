@@ -1,3 +1,35 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6acf03b2bb8350b75def92d81faa5f9630b131d06ace619d601b5a51d891ca93
-size 1118
+//===-- BuiltinGCs.h - Garbage collector linkage hacks --------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains hack functions to force linking in the builtin GC
+// components.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_IR_BUILTINGCS_H
+#define LLVM_IR_BUILTINGCS_H
+
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+
+/// FIXME: Collector instances are not useful on their own. These no longer
+///        serve any purpose except to link in the plugins.
+
+/// Ensure the definition of the builtin GCs gets linked in
+LLVM_ABI void linkAllBuiltinGCs();
+
+/// Creates an ocaml-compatible metadata printer.
+LLVM_ABI void linkOcamlGCPrinter();
+
+/// Creates an erlang-compatible metadata printer.
+LLVM_ABI void linkErlangGCPrinter();
+
+} // namespace llvm
+
+#endif // LLVM_IR_BUILTINGCS_H

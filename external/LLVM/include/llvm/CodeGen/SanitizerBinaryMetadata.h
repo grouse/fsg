@@ -1,3 +1,26 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b529dae3fa0fba2214cda1d232d418c04c7b92f5e02d4db2e92e1ecd4de0421f
-size 869
+//===- llvm/CodeGen/SanitizerBinaryMetadata.h -------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_SANITIZERBINARYMETADATA_H
+#define LLVM_CODEGEN_SANITIZERBINARYMETADATA_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class MachineSanitizerBinaryMetadataPass
+    : public PassInfoMixin<MachineSanitizerBinaryMetadataPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+  static bool isRequired() { return true; }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_SANITIZERBINARYMETADATA_H

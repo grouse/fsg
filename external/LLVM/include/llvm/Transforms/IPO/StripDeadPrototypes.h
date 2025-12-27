@@ -1,3 +1,33 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e8db7effd54e48ae4b6c6fc6f562f99b3ec258fe6eae9c0bcb8a504efe46a19d
-size 1175
+//===-- StripDeadPrototypes.h - Remove unused function declarations -------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This pass loops over all of the functions in the input module, looking for
+// dead declarations and removes them. Dead declarations are declarations of
+// functions for which no implementation is available (i.e., declarations for
+// unused library functions).
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_IPO_STRIPDEADPROTOTYPES_H
+#define LLVM_TRANSFORMS_IPO_STRIPDEADPROTOTYPES_H
+
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+
+class Module;
+
+/// Pass to remove unused function declarations.
+struct StripDeadPrototypesPass : PassInfoMixin<StripDeadPrototypesPass> {
+  LLVM_ABI PreservedAnalyses run(Module &M, ModuleAnalysisManager &);
+};
+
+}
+
+#endif // LLVM_TRANSFORMS_IPO_STRIPDEADPROTOTYPES_H

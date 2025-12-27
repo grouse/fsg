@@ -1,3 +1,27 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f92017b2eec784e09d4743795919315c7d6a536c7be94606e9bca3888647af58
-size 962
+//===- AMDGPUEmitPrintf.h ---------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Utility function to lower a printf call into a series of device
+// library calls on the AMDGPU target.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_UTILS_AMDGPUEMITPRINTF_H
+#define LLVM_TRANSFORMS_UTILS_AMDGPUEMITPRINTF_H
+
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+
+LLVM_ABI Value *emitAMDGPUPrintfCall(IRBuilder<> &Builder,
+                                     ArrayRef<Value *> Args, bool isBuffered);
+
+} // end namespace llvm
+
+#endif // LLVM_TRANSFORMS_UTILS_AMDGPUEMITPRINTF_H

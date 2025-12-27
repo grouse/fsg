@@ -1,3 +1,29 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:eada5aff90736d7eed1b63fbdf3d6a6037061b20e682dbf939a1dff249468f1d
-size 929
+//===- llvm/CodeGen/RemoveLoadsIntoFakeUses.h -------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CODEGEN_REMOVELOADSINTOFAKEUSES_H
+#define LLVM_CODEGEN_REMOVELOADSINTOFAKEUSES_H
+
+#include "llvm/CodeGen/MachinePassManager.h"
+
+namespace llvm {
+
+class RemoveLoadsIntoFakeUsesPass
+    : public PassInfoMixin<RemoveLoadsIntoFakeUsesPass> {
+public:
+  PreservedAnalyses run(MachineFunction &MF,
+                        MachineFunctionAnalysisManager &MFAM);
+
+  MachineFunctionProperties getRequiredProperties() const {
+    return MachineFunctionProperties().setNoVRegs();
+  }
+};
+
+} // namespace llvm
+
+#endif // LLVM_CODEGEN_REMOVELOADSINTOFAKEUSES_H

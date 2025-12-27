@@ -1,3 +1,33 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fb0819d8dc188b59740a81afff7d3a410c335f70c27dab860d42646269224f9c
-size 845
+//===- SymbolSize.h ---------------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_OBJECT_SYMBOLSIZE_H
+#define LLVM_OBJECT_SYMBOLSIZE_H
+
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/Compiler.h"
+
+namespace llvm {
+namespace object {
+
+struct SymEntry {
+  symbol_iterator I;
+  uint64_t Address;
+  unsigned Number;
+  unsigned SectionID;
+};
+
+LLVM_ABI int compareAddress(const SymEntry *A, const SymEntry *B);
+
+LLVM_ABI std::vector<std::pair<SymbolRef, uint64_t>>
+computeSymbolSizes(const ObjectFile &O);
+}
+} // namespace llvm
+
+#endif

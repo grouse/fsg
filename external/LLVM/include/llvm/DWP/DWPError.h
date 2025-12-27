@@ -1,3 +1,24 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7a50cbf121639b1739d8de042108555f56d1fd5e66ccae92183771bbf0da816a
-size 581
+#ifndef LLVM_DWP_DWPERROR_H
+#define LLVM_DWP_DWPERROR_H
+
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <string>
+
+namespace llvm {
+class DWPError : public ErrorInfo<DWPError> {
+public:
+  DWPError(std::string Info) : Info(std::move(Info)) {}
+  void log(raw_ostream &OS) const override { OS << Info; }
+  std::error_code convertToErrorCode() const override {
+    llvm_unreachable("Not implemented");
+  }
+  LLVM_ABI static char ID;
+
+private:
+  std::string Info;
+};
+} // namespace llvm
+
+#endif // LLVM_DWP_DWPERROR_H
