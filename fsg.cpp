@@ -27,11 +27,6 @@ enum LexerFlags : u32 {
     LEXER_FLAG_EAT_WHITESPACE = 1 << 1,
     LEXER_FLAG_EAT_COMMENT = 1 << 2,
 
-    // TODO(jesper): this is a super dirty hack that probably requires some pretty
-    // long winded rewrites of the whole way I deal with templates and sections etc to
-    // generate the page
-    LEXER_FLAG_ENABLE_ANCHOR = 1 << 3,
-
     LEXER_FLAGS_DEFAULT = LEXER_FLAG_EAT_WHITESPACE,
 };
 
@@ -173,23 +168,6 @@ Token next_token(Lexer *lexer, LexerFlags flags)
             }
             result.str.length = (i32)(lexer->at - result.str.data);
             if (*lexer->at == '`') lexer->at += 1;
-            return result;
-        } else if (lexer->flags & LEXER_FLAG_ENABLE_ANCHOR &&
-                   starts_with(lexer, "<a"))
-        {
-            Token result;
-            result.type = TOKEN_ANCHOR;
-            result.str.data = lexer->at++;
-
-            while (lexer->at < lexer->end) {
-                if (starts_with(lexer, "</a>")) {
-                    lexer->at += 4;
-                    break;
-                }
-                lexer->at++;
-            }
-
-            result.str.length = (i32)(lexer->at - result.str.data);
             return result;
         } else if (is_alpha(lexer->at[0]) || is_number(lexer->at[0]) || (u8)lexer->at[0] >= 128) {
             Token result;
@@ -779,12 +757,7 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
 
         StringBuilder content{};
 
-        Lexer lexer{
-            (char*)contents.data,
-            (char*)contents.data+contents.size,
-            p,
-            (LexerFlags)(LEXER_FLAG_NONE | LEXER_FLAG_ENABLE_ANCHOR)
-        };
+        Lexer lexer{ (char*)contents.data, (char*)contents.data+contents.size, p };
         char *ptr = lexer.at;
 
         FsgPost post{};
@@ -865,6 +838,31 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
 
                 LOG_INFO("header: '%.*s' - '%.*s'", STRFMT(id), STRFMT(label));
                 array_add(&post.headers, { id, label, depth });
+            } else if (t.type == '<' && lexer.at[0] == 'a') {
+                t = next_token(&lexer);
+                String tag = t.str;
+
+                String properties { lexer.at, 0 };
+                if (eat_until(&lexer, '>', &t)) {
+                    properties.length = i32(t.str.data + t.str.length - properties.data - 1);
+                }
+
+                String label = slice(t.str, 1);
+                if (eat_until(&lexer, '<', &t)) {
+                    label.length = i32(t.str.data + t.str.length - label.data - 1);
+                }
+
+                bool has_href = false;
+                append_string(&content, "<a");
+
+                Array<TagProperty> props = parse_html_tag_properties(properties);
+                for (TagProperty prop : props) {
+                    if (prop.key == "href") has_href = true;
+                    append_stringf(&content, " %.*s=\"%.*s\"", STRFMT(prop.key), STRFMT(prop.value));
+                }
+
+                if (!has_href) append_stringf(&content, " href=\"%.*s\"", STRFMT(label));
+                append_stringf(&content, ">%.*s<", STRFMT(label));
             } else if (t.type == TOKEN_ANCHOR) {
                 i32 length = (i32)(t.str.data - ptr);
                 if (length > 0) append_string(&content, String{ ptr, length });
