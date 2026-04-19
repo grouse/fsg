@@ -1,0 +1,6 @@
+[submodule "tools/enki"]
+	path = tools/enki
+	url = https://github.com/grouse/enki.git
+[submodule "core"]
+	path = core
+	url = https://github.com/grouse/grs.git
