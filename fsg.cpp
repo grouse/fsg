@@ -818,6 +818,9 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                 append_escape_html(&content, t.str);
                 append_string(&content, "</code>");
             } else if (t.type == '<' && lexer.at[0] == 'h') {
+                i32 length = (i32)(t.str.data - ptr);
+                if (length > 0) append_string(&content, String{ ptr, length });
+
                 t = next_token(&lexer);
                 String tag = t.str;
 
@@ -839,8 +842,10 @@ void generate_src_dir(String output, String src_dir, bool build_drafts)
                 LOG_INFO("header: '%.*s' - '%.*s'", STRFMT(id), STRFMT(label));
                 array_add(&post.headers, { id, label, depth });
             } else if (t.type == '<' && lexer.at[0] == 'a') {
+                i32 length = (i32)(t.str.data - ptr);
+                if (length > 0) append_string(&content, String{ ptr, length });
+
                 t = next_token(&lexer);
-                String tag = t.str;
 
                 String properties { lexer.at, 0 };
                 if (eat_until(&lexer, '>', &t)) {
